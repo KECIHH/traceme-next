@@ -5,7 +5,7 @@
 - 当前仓库只有文档，后续编码 Agent 需要从项目初始化开始。
 - 编码顺序必须先 mock 数据打通 UI 和 schema，再接真实 AI API。
 - 不把登录、数据库、历史记录、PDF、地图、天气、搜索作为 MVP 任务。
-- 所有任务必须保持 `POST /api/trips/generate`、`TripGenerationRequest`、`TripGenerationResponse`、`TripPlan` 命名一致。
+- 所有任务必须保持 `POST /api/travel-plans/generate`、`TripGenerationRequest`、`TripGenerationResponse`、`TripPlan` 命名一致。
 
 ## MVP 范围
 
@@ -159,7 +159,7 @@ export interface GenerateTripPlanInput {
 - service 不依赖 React 或浏览器 API。
 - service 不直接暴露 provider API Key。
 
-## 任务 5：实现 `POST /api/trips/generate`
+## 任务 5：实现 `POST /api/travel-plans/generate`
 
 目标：
 
@@ -167,7 +167,7 @@ export interface GenerateTripPlanInput {
 
 执行：
 
-- 创建 `src/app/api/trips/generate/route.ts`。
+- 创建 `src/app/api/travel-plans/generate/route.ts`。
 - 只实现 `POST`。
 - 使用 `TripGenerationRequestSchema` 校验请求体。
 - 调用 `generateTripPlan(request)`。
@@ -202,7 +202,7 @@ export interface GenerateTripPlanInput {
 验收：
 
 - 首页直接展示工具表单。
-- 用户提交后调用 `POST /api/trips/generate`。
+- 用户提交后调用 `POST /api/travel-plans/generate`。
 - loading 状态禁用提交按钮。
 - error 状态保留表单输入。
 - 重新生成复用最近一次请求。
@@ -361,7 +361,7 @@ export interface GenerateTripPlanInput {
 2. 创建共享类型与 Zod schema。
 3. 创建 mock `TripPlan` JSON 并通过 schema 校验。
 4. 实现 `AIProvider` 抽象和 `generateTripPlan` service。
-5. 实现 `POST /api/trips/generate` mock 闭环。
+5. 实现 `POST /api/travel-plans/generate` mock 闭环。
 6. 实现 `TripForm`、页面状态和随机目的地推荐。
 7. 实现 `TripPlanView`、`DayPlanCard`、`VerifyBadge`。
 8. 实现 `tripToMarkdown`、复制全文和下载 Markdown。

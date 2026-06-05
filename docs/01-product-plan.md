@@ -4,7 +4,7 @@
 
 - 当前仓库没有既有业务代码，按新项目规划，后续使用 Next.js App Router、TypeScript、Tailwind CSS。
 - MVP 只完成旅行计划生成闭环，不做用户登录、数据库、历史记录、票务预订或实时数据查询。
-- 前端只调用本站后端接口 `POST /api/trips/generate`，不直接调用第三方 AI API。
+- 前端只调用本站后端接口 `POST /api/travel-plans/generate`，不直接调用第三方 AI API。
 - 所有实时或易变化信息必须标记为参考信息，使用 `needVerify: true` 或放入 `verificationItems`。
 - AI 生成结果的核心类型统一为 `TripPlan`，请求类型为 `TripGenerationRequest`，响应类型为 `TripGenerationResponse`。
 
@@ -26,7 +26,7 @@
 MVP 必须完成以下闭环：
 
 1. 用户填写旅行信息。
-2. 前端提交 `TripGenerationRequest` 到 `POST /api/trips/generate`。
+2. 前端提交 `TripGenerationRequest` 到 `POST /api/travel-plans/generate`。
 3. 后端通过 AI Provider 抽象层调用 AI。
 4. AI 返回结构化 JSON。
 5. 后端解析 JSON 并用 Zod schema 校验。
@@ -100,14 +100,14 @@ MVP 生成结果至少包含：
 5. 页面进入生成中状态，按钮禁用，展示加载提示。
 6. 后端生成并校验 `TripPlan`。
 7. 页面展示旅行总览、每日行程、餐饮住宿交通建议、预算拆分、准备清单、风险提醒、自行确认事项和免责声明。
-8. 用户可以点击重新生成，使用同一份输入再次请求 `POST /api/trips/generate`。
+8. 用户可以点击重新生成，使用同一份输入再次请求 `POST /api/travel-plans/generate`。
 9. 用户可以复制全文。
 10. 用户可以下载 Markdown 文件。
 
 ## 成功验收标准
 
 - 用户能在无登录状态下完成一次旅行计划生成。
-- `POST /api/trips/generate` 能接收合法 `TripGenerationRequest` 并返回合法 `TripGenerationResponse`。
+- `POST /api/travel-plans/generate` 能接收合法 `TripGenerationRequest` 并返回合法 `TripGenerationResponse`。
 - `TripPlan` 覆盖所有 MVP 必填内容。
 - 前端展示不依赖数据库和真实第三方实时数据。
 - AI 返回内容必须经过 JSON 解析和 Zod schema 校验。

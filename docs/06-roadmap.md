@@ -13,7 +13,7 @@ MVP 完成一个从输入到结构化旅行计划展示的闭环：
 
 ```txt
 TripGenerationRequest
-  -> POST /api/trips/generate
+  -> POST /api/travel-plans/generate
   -> AIProvider
   -> TripPlanSchema
   -> TripGenerationResponse
@@ -77,7 +77,7 @@ TripGenerationRequest
 - 创建 mock JSON。
 - 创建 `mock-provider.ts`。
 - 创建 `trip-generation-service.ts`。
-- 实现 `POST /api/trips/generate` mock 返回。
+- 实现 `POST /api/travel-plans/generate` mock 返回。
 
 验收标准：
 
@@ -104,7 +104,7 @@ TripGenerationRequest
 验收标准：
 
 - 首页第一屏是工具页面。
-- 表单能提交到 `POST /api/trips/generate`。
+- 表单能提交到 `POST /api/travel-plans/generate`。
 - 生成中和错误状态清楚。
 - 结果展示覆盖 `TripPlan` 所有 MVP 信息。
 - 复制和 Markdown 下载内容包含风险提醒、自行确认事项、免责声明。
@@ -170,6 +170,6 @@ TripGenerationRequest
 验收标准：
 
 - 每个扩展都有独立需求说明和技术评估。
-- 不破坏 `POST /api/trips/generate` 的 MVP 契约。
+- 不破坏 `POST /api/travel-plans/generate` 的 MVP 契约。
 - 涉及第三方 API 的扩展必须先完成官方文档调研。
 

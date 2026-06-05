@@ -4,7 +4,7 @@
 
 - 首页 `src/app/page.tsx` 就是核心工具页面，不做营销落地页。
 - UI 使用 Tailwind CSS，组件保持简洁、可扫描、适合重复使用。
-- 前端只调用 `POST /api/trips/generate`，不直接调用第三方 AI API。
+- 前端只调用 `POST /api/travel-plans/generate`，不直接调用第三方 AI API。
 - 结果展示的数据源为 `TripGenerationResponse.tripPlan`。
 - Markdown 复制和下载使用 `tripToMarkdown(tripPlan)`。
 
@@ -196,7 +196,7 @@ type GenerateStatus = "idle" | "loading" | "success" | "error";
 - 点击生成后 `status = "loading"`。
 - 成功后 `status = "success"` 并展示 `TripPlanView`。
 - 失败后 `status = "error"`，保留用户表单输入。
-- 重新生成使用最近一次表单输入再次调用 `POST /api/trips/generate`。
+- 重新生成使用最近一次表单输入再次调用 `POST /api/travel-plans/generate`。
 
 ## 错误文案
 
