@@ -1,65 +1,151 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+import { DestinationSuggestions } from "@/components/trip/destination-suggestions";
+import { TripPlanResult } from "@/components/trip/trip-plan-result";
+import { TripPlannerForm } from "@/components/trip/trip-planner-form";
+import type { GenerateTripPlanRequest, TripPlan } from "@/lib/schemas/trip";
+import { generateTripPlanFromApi } from "@/lib/services/travel-plan-client";
+
+type GenerateStatus = "idle" | "loading" | "success" | "error";
+
+function getStatusTitle(status: GenerateStatus) {
+  switch (status) {
+    case "idle":
+      return "准备生成";
+    case "loading":
+      return "生成中";
+    case "success":
+      return "已生成草稿";
+    case "error":
+      return "生成失败";
+  }
+}
 
 export default function Home() {
+  const [destination, setDestination] = useState("成都");
+  const [status, setStatus] = useState<GenerateStatus>("idle");
+  const [tripPlan, setTripPlan] = useState<TripPlan | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [latestRequest, setLatestRequest] = useState<GenerateTripPlanRequest | null>(null);
+
+  const isLoading = status === "loading";
+
+  async function submitRequest(request: GenerateTripPlanRequest) {
+    setStatus("loading");
+    setErrorMessage("");
+    setLatestRequest(request);
+
+    const result = await generateTripPlanFromApi(request);
+
+    if (result.ok) {
+      setTripPlan(result.data);
+      setStatus("success");
+      return;
+    }
+
+    setStatus("error");
+    setErrorMessage(result.errorMessage);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
+        <header className="max-w-3xl">
+          <p className="text-sm font-semibold text-emerald-700">TraceMe Next</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+            迹遇 Next
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-4 text-base leading-7 text-zinc-600">
+            输入出发地、目的地、日期、人数和偏好，先用本地 mock 生成一份旅行计划草稿预览。
+            当前版本只用于打通可见生成流程。
           </p>
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] lg:items-start">
+          <div className="space-y-6">
+            <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+              <TripPlannerForm
+                destination={destination}
+                isSubmitting={isLoading}
+                onDestinationChange={setDestination}
+                onSubmit={submitRequest}
+              />
+            </section>
+
+            <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+              <DestinationSuggestions
+                disabled={isLoading}
+                onSelectDestination={setDestination}
+              />
+            </section>
+          </div>
+
+          <aside className="min-w-0 space-y-6">
+            <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-500">生成状态</p>
+                  <h2 className="mt-1 text-xl font-semibold text-zinc-950">
+                    {getStatusTitle(status)}
+                  </h2>
+                </div>
+                <span
+                  className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                    status === "success"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : status === "error"
+                        ? "bg-red-50 text-red-700"
+                        : status === "loading"
+                          ? "bg-sky-50 text-sky-700"
+                          : "bg-zinc-100 text-zinc-600"
+                  }`}
+                >
+                  {status}
+                </span>
+              </div>
+
+              {status === "idle" ? (
+                <p className="mt-4 text-sm leading-6 text-zinc-600">
+                  填写左侧表单后点击生成。推荐目的地会自动回填到目的地输入框。
+                </p>
+              ) : null}
+
+              {status === "loading" ? (
+                <p className="mt-4 text-sm leading-6 text-sky-800">
+                  正在生成旅行计划草稿，请稍等。
+                </p>
+              ) : null}
+
+              {status === "error" ? (
+                <div className="mt-4 rounded-md bg-red-50 p-4 text-sm leading-6 text-red-800">
+                  {errorMessage || "生成失败，请稍后再试。"}
+                </div>
+              ) : null}
+
+              {latestRequest ? (
+                <div className="mt-4 rounded-md bg-zinc-50 p-3 text-xs leading-5 text-zinc-600">
+                  最近请求：{latestRequest.departureCity} 到 {latestRequest.destination}，
+                  {latestRequest.startDate} 至 {latestRequest.endDate}
+                </div>
+              ) : null}
+            </section>
+
+            {tripPlan && status === "success" ? (
+              <TripPlanResult tripPlan={tripPlan} />
+            ) : (
+              <section className="rounded-md border border-dashed border-zinc-300 bg-white/70 p-5">
+                <h2 className="text-lg font-semibold text-zinc-950">结果预览</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  成功生成后，这里会优先展示完整 TripPlanResult，覆盖每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、自行确认事项和免责声明。
+                  复制全文与 Markdown 下载仍留到后续轮次。
+                </p>
+              </section>
+            )}
+          </aside>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

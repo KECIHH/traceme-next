@@ -48,3 +48,18 @@ export function calculateTripDays(startDate: string, endDate: string) {
 
   return Math.floor((endTime - startTime) / DAY_IN_MS) + 1;
 }
+
+export function addDaysToIsoDate(value: string, offsetDays: number) {
+  const startTime = getIsoDateTime(value);
+
+  if (startTime === null || !Number.isInteger(offsetDays)) {
+    return null;
+  }
+
+  const date = new Date(startTime + offsetDays * DAY_IN_MS);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}

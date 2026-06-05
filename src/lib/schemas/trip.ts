@@ -89,10 +89,22 @@ export const GenerateTripPlanRequestSchema = z
     generationMode: GenerationModeSchema,
   })
   .superRefine((value, context) => {
-    if (calculateTripDays(value.startDate, value.endDate) === null) {
+    const days = calculateTripDays(value.startDate, value.endDate);
+
+    if (days === null) {
       context.addIssue({
         code: "custom",
         message: "endDate cannot be earlier than startDate.",
+        path: ["endDate"],
+      });
+
+      return;
+    }
+
+    if (days > 60) {
+      context.addIssue({
+        code: "custom",
+        message: "Trip length cannot exceed 60 days.",
         path: ["endDate"],
       });
     }
