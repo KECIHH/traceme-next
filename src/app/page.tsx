@@ -49,6 +49,14 @@ export default function Home() {
     setErrorMessage(result.errorMessage);
   }
 
+  async function regenerateLatestRequest() {
+    if (!latestRequest || isLoading) {
+      return;
+    }
+
+    await submitRequest(latestRequest);
+  }
+
   return (
     <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
@@ -58,8 +66,8 @@ export default function Home() {
             迹遇 Next
           </h1>
           <p className="mt-4 text-base leading-7 text-zinc-600">
-            输入出发地、目的地、日期、人数和偏好，先用本地 mock 生成一份旅行计划草稿预览。
-            当前版本只用于打通可见生成流程。
+            输入出发地、目的地、日期、人数和偏好，生成一份旅行计划草稿预览。
+            结果会标明当前来源，并提醒出发前自行确认实时信息。
           </p>
         </header>
 
@@ -125,9 +133,19 @@ export default function Home() {
               ) : null}
 
               {latestRequest ? (
-                <div className="mt-4 rounded-md bg-zinc-50 p-3 text-xs leading-5 text-zinc-600">
-                  最近请求：{latestRequest.departureCity} 到 {latestRequest.destination}，
-                  {latestRequest.startDate} 至 {latestRequest.endDate}
+                <div className="mt-4 flex min-w-0 flex-col gap-3 rounded-md bg-zinc-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="min-w-0 break-words text-xs leading-5 text-zinc-600">
+                    最近请求：{latestRequest.departureCity} 到 {latestRequest.destination}，
+                    {latestRequest.startDate} 至 {latestRequest.endDate}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={regenerateLatestRequest}
+                    disabled={isLoading}
+                    className="shrink-0 rounded-md bg-white px-3 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400"
+                  >
+                    重新生成 / 再来一版
+                  </button>
                 </div>
               ) : null}
             </section>
@@ -139,7 +157,7 @@ export default function Home() {
                 <h2 className="text-lg font-semibold text-zinc-950">结果预览</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
                   成功生成后，这里会优先展示完整 TripPlanResult，覆盖每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、自行确认事项和免责声明。
-                  复制全文与 Markdown 下载仍留到后续轮次。
+                  生成计划后，你可以查看完整行程，并复制全文或下载 Markdown。
                 </p>
               </section>
             )}

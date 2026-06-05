@@ -69,10 +69,16 @@ function requireNeedVerifyForVariableInfoText(
 export const GenerationModeSchema = z.literal("quick");
 export const PaceSchema = z.enum(["relaxed", "balanced", "intensive"]);
 export const CurrencySchema = z.literal("CNY");
+export const BudgetScopeSchema = z.enum(["total", "perPerson"]);
+export const TripPlanSourceSchema = z.object({
+  provider: z.enum(["mock", "openai-compatible"]),
+  kind: z.enum(["mock", "ai"]),
+});
 
 export const BudgetSchema = z.object({
   amount: z.number().positive().max(1_000_000),
   currency: CurrencySchema,
+  scope: BudgetScopeSchema.default("total"),
 });
 
 export const GenerateTripPlanRequestSchema = z
@@ -294,6 +300,7 @@ export const TripPlanSchema = z
     id: NonEmptyStringSchema.max(80),
     generatedAt: z.iso.datetime(),
     generationMode: GenerationModeSchema,
+    source: TripPlanSourceSchema,
     input: TripPlanInputSchema,
     overview: NonEmptyStringSchema.max(1000),
     dailyItinerary: z.array(DailyItinerarySchema).min(1),
@@ -360,7 +367,9 @@ export const TripPlanSchema = z
 
 export type GenerationMode = z.infer<typeof GenerationModeSchema>;
 export type Pace = z.infer<typeof PaceSchema>;
+export type BudgetScope = z.infer<typeof BudgetScopeSchema>;
 export type Budget = z.infer<typeof BudgetSchema>;
+export type TripPlanSource = z.infer<typeof TripPlanSourceSchema>;
 export type GenerateTripPlanRequest = z.infer<typeof GenerateTripPlanRequestSchema>;
 export type TripPlanInput = z.infer<typeof TripPlanInputSchema>;
 export type TripPlan = z.infer<typeof TripPlanSchema>;

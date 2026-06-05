@@ -2,10 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 
-import type { GenerateTripPlanRequest, Pace } from "@/lib/schemas/trip";
+import type { BudgetScope, GenerateTripPlanRequest, Pace } from "@/lib/schemas/trip";
 import { calculateTripDays, isIsoDateOnly } from "@/lib/utils/date";
-
-type BudgetScope = "total" | "perPerson";
 
 type TripPlannerFormProps = {
   destination: string;
@@ -50,18 +48,6 @@ const budgetScopeOptions: Array<{ value: BudgetScope; label: string }> = [
   { value: "perPerson", label: "人均预算" },
 ];
 
-function buildCustomPreference(scope: BudgetScope, customPreference: string) {
-  const scopeLabel =
-    budgetScopeOptions.find((option) => option.value === scope)?.label ?? "总预算";
-  const trimmedCustomPreference = customPreference.trim();
-
-  if (!trimmedCustomPreference) {
-    return `预算口径：${scopeLabel}`;
-  }
-
-  return `预算口径：${scopeLabel}；补充偏好：${trimmedCustomPreference}`;
-}
-
 export function TripPlannerForm({
   destination,
   isSubmitting,
@@ -102,7 +88,7 @@ export function TripPlannerForm({
     const trimmedDestination = destination.trim();
     const parsedTravelers = Number(travelers);
     const parsedBudgetAmount = Number(budgetAmount);
-    const combinedCustomPreference = buildCustomPreference(budgetScope, customPreference);
+    const trimmedCustomPreference = customPreference.trim();
 
     if (!trimmedDepartureCity) {
       nextErrors.departureCity = "请填写出发城市。";
@@ -146,7 +132,7 @@ export function TripPlannerForm({
       nextErrors.preferences = "请至少选择一个旅行偏好。";
     }
 
-    if (combinedCustomPreference.length > 500) {
+    if (trimmedCustomPreference.length > 500) {
       nextErrors.customPreference = "补充偏好过长，请控制在 500 字以内。";
     }
 
@@ -163,9 +149,10 @@ export function TripPlannerForm({
               budget: {
                 amount: parsedBudgetAmount,
                 currency: "CNY",
+                scope: budgetScope,
               },
               preferences,
-              customPreference: combinedCustomPreference,
+              customPreference: trimmedCustomPreference,
               pace,
               generationMode: "quick",
             } satisfies GenerateTripPlanRequest)
@@ -191,7 +178,7 @@ export function TripPlannerForm({
       <div>
         <h2 className="text-xl font-semibold text-zinc-950">旅行信息</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          填好基础信息后，会先用当前 mock API 生成一份旅行计划草稿预览。
+          填好基础信息后，服务端会生成一份旅行计划草稿预览。
         </p>
       </div>
 
@@ -415,7 +402,7 @@ export function TripPlannerForm({
           disabled={isSubmitting}
         />
         <div className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-500">
-          <span>提交时会带上预算口径：{budgetScope === "total" ? "总预算" : "人均预算"}。</span>
+          <span>预算口径：{budgetScope === "total" ? "总预算" : "人均预算"}，结果会分别展示总额和人均参考。</span>
           <span>{customPreference.length}/420</span>
         </div>
         {errors.customPreference ? (

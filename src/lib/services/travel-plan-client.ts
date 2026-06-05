@@ -2,7 +2,9 @@ import { TripPlanSchema, type GenerateTripPlanRequest, type TripPlan } from "@/l
 
 type ApiErrorCode =
   | "BAD_REQUEST"
-  | "MOCK_PROVIDER_ERROR"
+  | "AI_PROVIDER_CONFIG_ERROR"
+  | "AI_PROVIDER_ERROR"
+  | "AI_EMPTY_RESPONSE"
   | "AI_JSON_PARSE_ERROR"
   | "AI_SCHEMA_VALIDATION_ERROR"
   | "INTERNAL_ERROR";
@@ -52,7 +54,10 @@ function toUserFacingErrorMessage(code?: string) {
   switch (code) {
     case "BAD_REQUEST":
       return "请检查出发地、目的地、日期、人数、预算和偏好是否填写正确。";
-    case "MOCK_PROVIDER_ERROR":
+    case "AI_PROVIDER_CONFIG_ERROR":
+      return "服务端 AI 配置暂时不可用，请稍后再试。";
+    case "AI_PROVIDER_ERROR":
+    case "AI_EMPTY_RESPONSE":
     case "AI_JSON_PARSE_ERROR":
     case "AI_SCHEMA_VALIDATION_ERROR":
       return "生成的旅行计划草稿暂时不稳定，请稍后重试。";

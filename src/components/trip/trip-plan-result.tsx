@@ -10,8 +10,10 @@ import type {
   TripPlan,
   UserVerifyItem,
 } from "@/lib/schemas/trip";
+import { getBudgetSummary } from "@/lib/utils/budget";
 
 import { DayItineraryCard } from "./day-itinerary-card";
+import { ResultActions } from "./result-actions";
 import { SectionCard } from "./section-card";
 import { VerifyBadge } from "./verify-badge";
 
@@ -27,6 +29,11 @@ const paceLabels: Record<Pace, string> = {
 
 const generationModeLabels: Record<TripPlan["generationMode"], string> = {
   quick: "快速生成",
+};
+
+const sourceProviderLabels: Record<TripPlan["source"]["provider"], string> = {
+  mock: "本地 mock",
+  "openai-compatible": "OpenAI-compatible",
 };
 
 const priceLevelLabels: Record<FoodSuggestion["priceLevel"], string> = {
@@ -300,21 +307,25 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
     userVerifyItems = [],
   } = tripPlan;
   const budgetTotal = budgetBreakdown.reduce((total, item) => total + item.amount, 0);
-  const perPersonBudget = input.travelers > 0 ? input.budget.amount / input.travelers : 0;
+  const budgetSummary = getBudgetSummary(input.budget, input.travelers);
   const title = `${input.destination} ${input.days} 天旅行计划草稿`;
+  const sourceLabel = sourceProviderLabels[tripPlan.source.provider] ?? tripPlan.source.provider;
+  const sourceKindLabel = tripPlan.source.kind === "mock" ? "mock 草稿" : "AI 草稿";
 
   return (
     <div className="min-w-0 space-y-6">
       <SectionCard
         title={title}
         eyebrow="完整结果"
-        action={<VerifyBadge needVerify label="参考草稿" />}
+        action={<VerifyBadge needVerify label={sourceKindLabel} />}
       >
         <p className="break-words text-sm leading-6 text-zinc-700">{overview}</p>
         <p className="text-xs leading-5 text-zinc-500">
-          生成时间：{formatGeneratedAt(tripPlan.generatedAt)}
+          生成时间：{formatGeneratedAt(tripPlan.generatedAt)} · 来源：{sourceLabel}
         </p>
       </SectionCard>
+
+      <ResultActions tripPlan={tripPlan} />
 
       <SectionCard title="基本信息" description="本区块来自本次提交的旅行输入。">
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -324,18 +335,23 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
           <InfoItem label="天数" value={`${input.days} 天`} />
           <InfoItem label="出行人数" value={`${input.travelers} 人`} />
           <InfoItem
+            label={`用户填写${budgetSummary.submittedLabel}`}
+            value={formatCurrency(budgetSummary.submittedAmount, input.budget.currency)}
+          />
+          <InfoItem
             label="总预算参考"
-            value={formatCurrency(input.budget.amount, input.budget.currency)}
+            value={formatCurrency(budgetSummary.totalAmount, input.budget.currency)}
           />
           <InfoItem
             label="人均预算参考"
-            value={formatCurrency(perPersonBudget, input.budget.currency)}
+            value={formatCurrency(budgetSummary.perPersonAmount, input.budget.currency)}
           />
           <InfoItem label="旅行节奏" value={paceLabels[input.pace] ?? input.pace} />
           <InfoItem
             label="生成模式"
             value={generationModeLabels[tripPlan.generationMode] ?? tripPlan.generationMode}
           />
+          <InfoItem label="生成来源" value={sourceLabel} />
         </dl>
         <div className="rounded-md bg-zinc-50 p-3">
           <p className="text-xs font-medium text-zinc-500">旅行偏好</p>
@@ -432,7 +448,7 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
         <dl className="grid gap-3 sm:grid-cols-3">
           <InfoItem
             label="总预算估算"
-            value={formatCurrency(input.budget.amount, input.budget.currency)}
+            value={formatCurrency(budgetSummary.totalAmount, input.budget.currency)}
           />
           <InfoItem
             label="拆分合计"
@@ -440,7 +456,7 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
           />
           <InfoItem
             label="人均参考"
-            value={formatCurrency(perPersonBudget, input.budget.currency)}
+            value={formatCurrency(budgetSummary.perPersonAmount, input.budget.currency)}
           />
         </dl>
         {budgetBreakdown.length > 0 ? (

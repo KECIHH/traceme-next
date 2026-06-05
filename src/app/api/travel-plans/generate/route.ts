@@ -41,7 +41,10 @@ function errorResponse(
 
 function getGenerationErrorStatus(code: ApiErrorCode) {
   switch (code) {
-    case "MOCK_PROVIDER_ERROR":
+    case "AI_PROVIDER_CONFIG_ERROR":
+      return 500;
+    case "AI_PROVIDER_ERROR":
+    case "AI_EMPTY_RESPONSE":
     case "AI_JSON_PARSE_ERROR":
     case "AI_SCHEMA_VALIDATION_ERROR":
       return 502;
