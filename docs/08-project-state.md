@@ -1,4 +1,81 @@
-# 项目状态记录 - MVP 编码阶段第 9 轮
+# 项目状态记录 - MVP 编码阶段第 10 轮
+
+## 第 10 轮已完成
+
+- 已复查当前 provider 架构：
+  - `AI_PROVIDER=mock` 和 `AI_PROVIDER=openai-compatible` 均保留。
+  - `AI_PROVIDER` 缺失时仍默认使用 `mock`。
+  - `AI_PROVIDER=openai-compatible` 时仍不会 fallback 到 mock，缺少必要配置会返回 `AI_PROVIDER_CONFIG_ERROR`。
+  - `openai-compatible` provider 仅适用于 Chat Completions 兼容格式。
+- 已确认真实 provider 的服务端密钥边界：
+  - `AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 和 `AI_REQUEST_TIMEOUT_MS` 只在服务端 provider 选择与 adapter 中读取。
+  - 前端仍只调用本站 `POST /api/travel-plans/generate`。
+  - 未发现 `NEXT_PUBLIC_AI_API_KEY` 或其他 `NEXT_PUBLIC_AI_*` 密钥变量。
+  - `.env.local.example` 仍只包含变量名和空值示例，没有真实密钥。
+- 本轮未发现可基于真实 AI 响应修复的问题：
+  - 当前工作区没有 `.env.local`。
+  - 因缺少真实 `AI_API_KEY`、`AI_MODEL` 和 `AI_CHAT_COMPLETIONS_URL`，未执行真实 AI 成功调用。
+  - 因未观察到真实 provider 返回的非 JSON、Markdown 包裹 JSON、字段缺失、字段名不匹配、`needVerify` 不合格或 `dailyItinerary` 天数不一致问题，本轮未修改 prompt、JSON 解析、schema 或生成 service。
+- 已确认错误响应边界：
+  - `AI_PROVIDER_CONFIG_ERROR` 缺配置响应不会暴露密钥、Authorization header、Bearer、完整堆栈或供应商敏感信息。
+  - `AI_PROVIDER_ERROR`、`AI_EMPTY_RESPONSE`、`AI_JSON_PARSE_ERROR` 和 `AI_SCHEMA_VALIDATION_ERROR` 的 API route 统一只返回错误码、通用 message 和 `requestId`，不返回底层异常对象、堆栈、完整 prompt 或完整 provider 响应。
+- 已保持 mock provider 稳定：
+  - `AI_PROVIDER=mock` 合法请求仍返回 HTTP 200、`ok: true`。
+  - 返回结果仍包含 `source: { provider: "mock", kind: "mock" }`。
+  - `dailyItinerary.length` 仍与 `input.days` 一致。
+  - 无头 Edge 真实页面流复验显示：表单、推荐目的地、mock API、完整结果展示、复制全文和下载 Markdown 仍可用。
+- 本轮修改文件：
+  - `docs/08-project-state.md`
+- 当前仍未实现：
+  - 真实 AI 成功调用验证
+  - 非 Chat Completions 兼容格式的第三方 Provider
+  - 用户登录
+  - 数据库
+  - 地图
+  - 天气
+  - 联网搜索
+  - PDF 导出
+  - 版本历史
+  - 保存历史或保存到笔记
+  - 方案对比
+  - 行程优化
+  - 真实票价、酒店价格、门票、交通班次、天气等实时数据能力
+
+## 第 10 轮验证结果
+
+- 静态检查已通过：
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+- `.env.local` 检查结果：
+  - 当前工作区未提供 `.env.local`。
+  - 因此本轮未验证真实 `AI_PROVIDER=openai-compatible` 成功端到端调用，也不会假装真实 AI 调用成功。
+- `AI_PROVIDER=mock` API 验证已通过：
+  - 使用生产构建临时服务 `http://127.0.0.1:3135`。
+  - 合法 `POST /api/travel-plans/generate` 请求返回 HTTP 200、`ok: true`。
+  - 成功响应中 `data.input.destination` 为“厦门”。
+  - 成功响应中 `source.provider` 为 `mock`，`source.kind` 为 `mock`。
+  - 成功响应中 `data.input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
+- `AI_PROVIDER=openai-compatible` 缺配置错误路径验证已通过：
+  - 使用生产构建临时服务 `http://127.0.0.1:3136`。
+  - 未配置 `AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 时，合法业务请求返回 HTTP 500。
+  - 错误响应为 `{ ok: false, error: { code: "AI_PROVIDER_CONFIG_ERROR", message, requestId } }`。
+  - 错误响应未暴露 API Key、Authorization header、Bearer、堆栈、`AI_CHAT_COMPLETIONS_URL` 或供应商敏感信息。
+- 浏览器主流程验证已通过：
+  - 使用 mock 模式生产构建临时服务 `http://127.0.0.1:3143` 和无头 Edge 验证。
+  - 首页表单和 4 个目的地推荐项可见。
+  - 点击推荐目的地后，`destination` 从“成都”回填为“厦门”。
+  - 提交表单后，浏览器实际请求 `POST /api/travel-plans/generate`，网络响应为 HTTP 200、`application/json`。
+  - 结果页开发 JSON 预览中的 `source` 为 `{ provider: "mock", kind: "mock" }`。
+  - 结果页 `input.destination` 为“厦门”，`input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
+  - 结果页展示完整结果操作区，包含“复制全文”和“下载 Markdown”两个按钮。
+  - 点击“复制全文”后显示“已复制 Markdown 全文。”。
+  - 点击“下载 Markdown”后显示“已开始下载 Markdown 文件。”；本轮验证了浏览器反馈和下载触发，未打开落盘后的 `.md` 文件。
+
+## 记录时间
+
+- 日期：2026-06-06
+- 阶段：MVP 编码阶段第 10 轮
 
 ## 第 9 轮已完成
 
