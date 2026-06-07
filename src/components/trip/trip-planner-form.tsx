@@ -279,7 +279,7 @@ export function TripPlannerForm({
           <label className="block text-sm font-medium text-zinc-800" htmlFor="budgetAmount">
             预算
           </label>
-          <div className="mt-2 grid grid-cols-[1fr_auto_auto] overflow-hidden rounded-md border border-zinc-300 bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+          <div className="mt-2 grid grid-cols-1 overflow-hidden rounded-md border border-zinc-300 bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100 min-[420px]:grid-cols-[minmax(0,1fr)_auto_auto]">
             <input
               id="budgetAmount"
               type="number"
@@ -293,7 +293,7 @@ export function TripPlannerForm({
             <select
               aria-label="预算币种"
               value="CNY"
-              className="h-11 border-l border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700 outline-none"
+              className="h-11 border-t border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700 outline-none min-[420px]:border-l min-[420px]:border-t-0"
               disabled
             >
               <option value="CNY">CNY</option>
@@ -302,7 +302,7 @@ export function TripPlannerForm({
               aria-label="预算口径"
               value={budgetScope}
               onChange={(event) => setBudgetScope(event.target.value as BudgetScope)}
-              className="h-11 border-l border-zinc-200 bg-white px-3 text-sm text-zinc-700 outline-none"
+              className="h-11 border-t border-zinc-200 bg-white px-3 text-sm text-zinc-700 outline-none min-[420px]:border-l min-[420px]:border-t-0"
               disabled={isSubmitting}
             >
               {budgetScopeOptions.map((option) => (

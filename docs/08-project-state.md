@@ -1,4 +1,320 @@
-# 项目状态记录 - MVP 编码阶段第 10 轮
+# 项目状态记录 - MVP 编码阶段第 14 轮
+
+## 第 14 轮当前状态
+
+- 本轮定位为 MVP 发布准备与交付清单，未实现新产品功能。
+- 已阅读并核对：
+  - `docs/08-project-state.md`
+  - `README.md`
+  - `package.json`
+  - `.env.local.example`
+  - `.gitignore`
+  - 当前 `git status`
+- 已按第 13 轮最新验收结果修正发布文档口径：
+  - 当前 MVP 已通过 `AI_PROVIDER=mock` API 和页面复验。
+  - 当前 MVP 已通过 `AI_PROVIDER=openai-compatible` 缺配置错误路径复验。
+  - 当前 MVP 已通过真实 `AI_PROVIDER=openai-compatible` API 复验。
+  - 旅行计划继续定位为草稿，实时或易变信息需用户自行确认。
+- 已更新 `README.md`：
+  - 包含项目简介、当前 MVP 能力、技术栈、本地启动方式、测试/检查命令。
+  - 包含 `AI_PROVIDER=mock` 使用方式。
+  - 包含 `AI_PROVIDER=openai-compatible` 环境变量说明。
+  - 明确 API Key 只放服务端 `.env.local` 或部署平台服务端环境变量。
+  - 明确当前未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比、行程优化等能力。
+- 已新增 `docs/09-release-checklist.md`：
+  - 覆盖发布前命令检查。
+  - 覆盖 mock 模式验收。
+  - 覆盖 openai-compatible 真实模式验收。
+  - 覆盖缺配置错误路径验收。
+  - 覆盖密钥泄露检查、已知限制和部署环境变量清单。
+  - 记录第 14 轮开始时 staged / unstaged / untracked 文件归属。
+- 已更新 `.env.local.example`：
+  - 仅保留变量名和空值示例。
+  - 未包含真实 API Key、真实模型名、真实 provider URL 或真实超时值。
+- 已确认 `.gitignore` 覆盖不应提交内容：
+  - `.env.local` 命中 `.env*`。
+  - `.next` 命中 `/.next/`。
+  - `node_modules` 命中 `/node_modules`。
+  - `.next-dev-log`、`tsconfig.tsbuildinfo`、`next-env.d.ts` 也被忽略规则覆盖。
+
+## 第 14 轮工作区改动归属
+
+- 第 14 轮开始时 staged 文件：
+  - `docs/08-project-state.md`
+  - `package-lock.json`
+  - `package.json`
+  - `tests/core-contracts.test.ts`
+  - 判断：归属第 13 轮测试、脚本和项目状态记录。
+- 第 14 轮开始时 unstaged 文件：
+  - `src/components/trip/result-actions.tsx`
+  - `src/components/trip/trip-planner-form.tsx`
+  - `src/lib/ai/build-trip-plan-prompt.ts`
+  - `src/lib/ai/openai-compatible-provider.ts`
+  - `src/lib/services/generate-trip-plan.ts`
+  - 判断：归属历史功能、provider、prompt、UI 和生成链路改动，不归属第 14 轮发布文档准备。
+- 第 14 轮开始时 untracked 文件：
+  - 无。
+- 第 14 轮新增或修改文件：
+  - `README.md`
+  - `.env.local.example`
+  - `docs/09-release-checklist.md`
+  - `docs/08-project-state.md`
+- 本轮未执行 `git commit`。
+- 本轮未修改核心业务逻辑，未改变 `POST /api/travel-plans/generate`，未删除 mock provider。
+
+## 第 14 轮验证结果
+
+- 发布前命令检查：
+  - `npm test` 已通过，7 个测试全部 pass。
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+- 密钥与忽略规则检查：
+  - 未读取或输出 `.env.local` 内容。
+  - `.env.local.example` 仅为空值示例。
+  - `git check-ignore -v .env.local .next node_modules .next-dev-log tsconfig.tsbuildinfo next-env.d.ts` 已确认这些本地文件或目录被 ignore 覆盖。
+  - README、docs、src、tests 和 `.env.local.example` 的敏感模式扫描未发现真实 API Key；命中项为安全说明文字或服务端 provider 中正常构造 `Authorization` header 的代码位置，需要发布前人工复核但当前未发现真实密钥值。
+
+## 第 14 轮仍未实现
+
+- 数据库。
+- 用户登录。
+- 地图。
+- 天气。
+- 联网搜索。
+- PDF 导出。
+- 版本历史。
+- 保存历史或保存到笔记。
+- 方案对比。
+- 行程优化。
+- 真实票价、酒店价格、门票、交通班次、天气等实时数据能力。
+- 非 Chat Completions / Responses 兼容格式的第三方 Provider。
+
+## 第 14 轮发布建议
+
+- 当前静态检查、测试和生产构建已通过。
+- 建议进入部署阶段前，由用户确认目标部署模式：
+  - `AI_PROVIDER=mock`：适合演示、离线验收或无密钥部署。
+  - `AI_PROVIDER=openai-compatible`：需要用户在部署平台配置服务端 `AI_API_KEY`、`AI_MODEL` 和 `AI_CHAT_COMPLETIONS_URL`。
+- 建议部署前再次确认 `.env.local` 不进入 git，且部署平台环境变量没有填入前端可见的 `NEXT_PUBLIC_*` 密钥变量。
+
+## 第 14 轮审查后修复
+
+- 审查结论为通过，未发现 P0 或 P1 问题。
+- 已修复审查提出的 P2 文档一致性问题：
+  - 清理文档底部旧“下一步建议”中仍暗示真实 `AI_PROVIDER=openai-compatible` 尚未验收的过期说法。
+  - 将底部建议更新为当前第 14 轮发布阶段口径：先确认部署模式，再按发布检查清单完成目标环境验收。
+- 本次修复仅修改 `docs/08-project-state.md`，未修改 README、发布清单、环境变量示例、核心业务逻辑、API route、provider、mock provider 或前端功能。
+- 本次修复未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 14 轮
+
+# 项目状态记录 - MVP 编码阶段第 13 轮
+
+## 第 13 轮当前状态
+
+- 本轮定位为 MVP 发布前稳定性打磨与基础测试，未新增产品大功能。
+- 已检查 `package.json` scripts 和依赖：
+  - 当前沿用轻量测试方案：`node --test` + `tsx`。
+  - `npm test` 已配置为 `node --import tsx --test "tests/**/*.test.ts"`。
+  - 未引入 Jest、Vitest 或其他更重测试框架。
+- 已检查核心纯函数/契约测试：
+  - `GenerateTripPlanRequestSchema` 覆盖合法输入和非法输入。
+  - `TripPlanSchema` 覆盖 `input.days` 与日期范围一致、`dailyItinerary.length` 与天数一致。
+  - `TripPlanSchema` 覆盖 `userVerifyItems` 必须包含 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
+  - `parseAiJson` 覆盖标准 JSON 和 ```json 代码块 JSON。
+  - `formatTripPlanMarkdown` 覆盖基本信息、每日行程、用户自行确认事项、免责声明，并确认不输出 `undefined` 或 `null` 字面量。
+  - `getBudgetSummary` 覆盖 `budget.scope=total` 和 `budget.scope=perPerson` 的总预算/人均预算口径。
+- 已检查前端错误文案：
+  - `src/lib/services/travel-plan-client.ts` 会将服务端错误码映射为用户友好中文提示。
+  - `src/app/page.tsx` error 状态只展示映射后的前端文案。
+  - 前端不展示 provider 原始响应、完整 URL、Authorization header、Bearer、API key、堆栈或底层异常对象。
+- 本轮未改变以下边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除或替换 mock provider。
+  - 未修改 `.env.local` 或 `.env.local.example`。
+  - 未打印、提交、记录或暴露真实 `AI_API_KEY`、Authorization header、完整服务 URL、模型名、完整 prompt 或原始 AI 响应。
+  - 未实现数据库、登录、地图、天气、联网搜索、PDF、版本历史、保存历史、方案对比或行程优化。
+
+## 第 13 轮验证结果
+
+- 静态与单元测试：
+  - `npm test` 已通过，7 个测试全部 pass。
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+- `AI_PROVIDER=mock` API 复验已通过：
+  - 使用生产构建临时服务和临时进程环境覆盖为 mock。
+  - 合法 3 天厦门旅行计划请求返回 HTTP 200、`ok: true`。
+  - 响应为 `source.provider=mock`、`source.kind=mock`。
+  - `input.days=3`，`dailyItinerary.length=3`。
+  - `userVerifyItems` 五类齐全。
+- `AI_PROVIDER=openai-compatible` 缺配置错误路径复验已通过：
+  - 使用临时进程环境将 provider 必需配置置空，不修改 `.env.local`。
+  - 合法业务请求返回 HTTP 500、`ok: false`、`error.code=AI_PROVIDER_CONFIG_ERROR`，且包含 `requestId`。
+  - 错误响应未匹配到密钥、Bearer、Authorization、`AI_API_KEY`、完整 URL、api-key 或堆栈泄漏特征。
+- 真实 `AI_PROVIDER=openai-compatible` API 复验已通过：
+  - 当前 `.env.local` 存在，且必需变量名齐全；本轮只确认变量名存在，未输出变量值。
+  - 使用生产构建临时服务发起真实 provider 调用。
+  - 合法 3 天厦门旅行计划请求返回 HTTP 200、`ok: true`。
+  - 响应为 `source.provider=openai-compatible`、`source.kind=ai`。
+  - `input.days=3`，`dailyItinerary.length=3`。
+  - `userVerifyItems` 五类齐全。
+  - 响应摘要检查未匹配到密钥、Bearer、Authorization、`AI_API_KEY`、完整 URL、api-key 或堆栈泄漏特征。
+- Browser 布局与错误状态复验已通过：
+  - 桌面视口打开 mock 生产服务，首页可见 `迹遇 Next`，`scrollWidth` 等于 `clientWidth`。
+  - 桌面视口提交默认合法表单后进入 `已生成草稿`，完整结果、基本信息、每日行程、用户自行确认事项、免责声明、复制全文、下载 Markdown 和本地 mock 来源均可见，无横向溢出。
+  - 移动端 390px 视口下，首页和成功结果页关键区块均可见，`scrollWidth` 等于 `clientWidth`，未发现明显横向溢出或文本重叠。
+  - 缺配置错误页面提交后显示 `生成失败` 和“服务端 AI 配置暂时不可用，请稍后再试。”，未匹配到密钥、Authorization、完整 URL、api-key 或堆栈泄漏特征。
+
+## 第 13 轮仍未实现
+
+- 数据库。
+- 用户登录。
+- 地图。
+- 天气。
+- 联网搜索。
+- PDF 导出。
+- 版本历史。
+- 保存历史或保存到笔记。
+- 方案对比。
+- 行程优化。
+- 真实票价、酒店价格、门票、交通班次、天气等实时数据能力。
+- 非 Chat Completions / Responses 兼容格式的第三方 Provider。
+
+## 第 13 轮审查后修复
+
+- 审查结论为通过，未发现 P0、P1 或阻塞性 P2 代码问题。
+- 已按审查提醒处理发布前版本控制纳入事项：
+  - 将第 13 轮测试、脚本和状态记录相关文件纳入 git index：`tests/core-contracts.test.ts`、`package.json`、`package-lock.json`、`docs/08-project-state.md`。
+  - 未将无关源码改动混入本轮 staging 范围。
+- 本次审查后修复未修改业务代码、schema、provider、API route、Markdown formatter 或前端 UI。
+- 继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除 mock provider。
+  - 未暴露或记录任何真实 API Key。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 13 轮
+
+# 项目状态记录 - MVP 编码阶段第 12 轮
+
+## 第 12 轮当前状态
+
+- 真实 `AI_PROVIDER=openai-compatible` 端到端验收已通过，继续修复后的最终复验也已通过：
+  - 根目录已存在 `.env.local`，且必需变量名齐全。
+  - 未打印、提交、记录或暴露真实 `AI_API_KEY`、Authorization header、完整服务 URL、模型名、完整 prompt 或原始 AI 响应。
+  - 使用生产构建临时服务实际发起真实 provider 调用，接口返回 HTTP 200、`ok: true`。
+  - 成功响应中 `source.provider` 为 `openai-compatible`，`source.kind` 为 `ai`。
+  - 成功响应中 `input.days` 为 3，`dailyItinerary.length` 为 3。
+  - `userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
+- 已确认真实 AI 输出进入服务端校验链路：
+  - `openai-compatible` provider 只返回 raw text。
+  - `generateTripPlan` 继续执行 `parseAiJson(rawTripPlan)`。
+  - 服务端覆盖 `id`、`generatedAt`、`generationMode`、`source` 和 `input`。
+  - 覆盖后的对象继续经过 `TripPlanSchema.safeParse(...)`，通过后才返回前端。
+- 本轮窄修范围：
+  - `src/lib/ai/openai-compatible-provider.ts`：归一化 Chat Completions / Responses endpoint；限制输出 token；对瞬时 timeout / 5xx / 429 做有限重试；provider 外层 envelope 非 JSON 时把响应体作为 raw text 交给既有 JSON 解析链路；保留安全诊断日志，仅记录 event、model、protocol、url host、HTTP status 和 attempt。
+  - `src/lib/ai/build-trip-plan-prompt.ts`：压缩输出规模，并强化 JSON object、schema、`needVerify`、`disclaimer`、五类 `userVerifyItems` 和 `variableInfoTypes` 枚举约束。
+  - `src/lib/services/generate-trip-plan.ts`：继续保持 raw text 先过 `parseAiJson`、最终过 `TripPlanSchema.safeParse`；仅对 `dailyItinerary.items[].variableInfoTypes` 做非法枚举标签过滤，不补全业务字段、不伪造票价/天气/酒店/交通数据；新增脱敏 schema 诊断，只记录 path/code/message。
+  - `src/components/trip/result-actions.tsx`：复制全文优先使用剪贴板 API，失败时展示持久 textarea 手动复制兜底。
+  - 未修改 `parse-ai-json.ts`，未加入复杂字段猜测补全。
+- 已保持当前边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除或替换 mock provider。
+  - 未修改 `.env.local` 或 `.env.local.example`。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+
+## 第 12 轮验证结果
+
+- 真实 `AI_PROVIDER=openai-compatible` API 验收：
+  - 修复后使用生产构建临时服务 `http://127.0.0.1:3224`。
+  - 合法 3 天厦门旅行计划请求返回 HTTP 200、`ok: true`。
+  - 响应为 `source.provider=openai-compatible`、`source.kind=ai`。
+  - `input.days=3`，`dailyItinerary.length=3`。
+  - `userVerifyItems` 五类齐全：门票/预约、营业时间、酒店价格、交通班次/价格、天气。
+  - 响应摘要检查未发现密钥、Bearer、Authorization、`AI_API_KEY` 或堆栈泄漏特征。
+- 真实 AI 页面验收：
+  - 修复后使用生产构建临时服务 `http://127.0.0.1:3225` 和 in-app Browser 验证。
+  - 首页默认合法表单提交真实 AI 请求后，页面展示真实 AI 计划结果。
+  - 页面可见 `OpenAI-compatible`、`AI 草稿`、`复制全文` 和 `下载 Markdown`。
+  - `复制全文` 在当前 Codex in-app Browser 中走 textarea 手动复制兜底，显示“已展开 Markdown 全文，可手动复制。”，textarea 可见且有 Markdown 内容。
+  - `下载 Markdown` 点击后显示“已开始下载 Markdown 文件。”成功反馈；Codex in-app Browser 不支持下载事件监听，本轮按页面反馈验收下载触发。
+- `AI_PROVIDER=mock` 回归：
+  - 修复后使用生产构建临时服务 `http://127.0.0.1:3226`。
+  - 合法 3 天请求返回 HTTP 200、`ok: true`。
+  - 响应为 `source.provider=mock`、`source.kind=mock`。
+  - `input.days=3`，`dailyItinerary.length=3`。
+  - `userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
+- `AI_PROVIDER=openai-compatible` 缺配置错误路径：
+  - 修复后使用生产构建临时服务 `http://127.0.0.1:3227`。
+  - 临时将 `AI_PROVIDER=openai-compatible` 且必需 provider 配置置空，不修改 `.env.local`。
+  - 合法请求返回 HTTP 500、`ok: false`、`error.code=AI_PROVIDER_CONFIG_ERROR`，且包含 `requestId`。
+  - 错误响应未出现密钥、Bearer、Authorization、`AI_API_KEY`、完整 URL 或堆栈泄漏特征。
+- 本轮继续修复前观察到的问题：
+  - 真实 provider 曾出现 `invalid_json_response / chat_completions`、timeout，以及 `variableInfoTypes` 非法枚举导致的 `AI_SCHEMA_VALIDATION_ERROR`。
+  - 已通过 provider 有限重试、外层非 JSON raw text 兼容、prompt 枚举约束和 `variableInfoTypes` 非法标签窄过滤收口。
+  - 这些修复不改变 API route，不跳过 `parseAiJson`，不跳过 `TripPlanSchema.safeParse`，不伪造业务字段。
+- 静态检查结果：
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 12 轮
+
+# 项目状态记录 - MVP 编码阶段第 11 轮
+
+## 第 11 轮已完成
+
+- 已重新检查真实 AI Provider 验证前置条件：
+  - 当前工作区根目录仍不存在 `.env.local`。
+  - 因缺少 `.env.local`，本轮按约定停止真实 `AI_PROVIDER=openai-compatible` 端到端调用验证。
+  - 本轮未读取、打印、提交或记录任何真实 `AI_API_KEY`。
+- 本轮未发现可基于真实 AI 响应修复的问题：
+  - 因未执行真实 provider 调用，未观察到真实 AI 返回的 Markdown 包裹、字段缺失、字段名不一致、`needVerify` 不合格或 `dailyItinerary` 天数不一致问题。
+  - 因此未修改 `build-trip-plan-prompt.ts`、`parse-ai-json.ts`、`TripPlanSchema`、`generate-trip-plan` service 或 API route。
+- 已保持当前边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除或替换 mock provider。
+  - 未在前端暴露任何密钥。
+  - 未实现数据库、登录、地图、天气、联网搜索、PDF、版本历史、保存历史、方案对比或行程优化。
+- 本轮修改文件：
+  - `docs/08-project-state.md`
+
+## 第 11 轮验证结果
+
+- `.env.local` 检查结果：
+  - 当前工作区未提供 `.env.local`。
+  - 真实 `AI_PROVIDER=openai-compatible` 成功端到端调用未验证，未假装成功。
+- `AI_PROVIDER=mock` API 复验已通过：
+  - 使用生产构建临时服务 `http://127.0.0.1:3154`。
+  - 合法 `POST /api/travel-plans/generate` 请求返回 HTTP 200、`ok: true`。
+  - 成功响应中 `source.provider` 为 `mock`，`source.kind` 为 `mock`。
+  - 成功响应中 `data.input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
+- `AI_PROVIDER=mock` 浏览器主流程复验已通过：
+  - 使用生产构建临时服务 `http://127.0.0.1:3154` 和 in-app Browser 验证。
+  - 首页表单可打开，点击“厦门”推荐项后可提交生成。
+  - 成功后页面显示“已生成草稿”，并展示“复制全文”和“下载 Markdown”入口。
+  - 开发用 JSON 预览中 `source.provider` 为 `mock`，`source.kind` 为 `mock`，`input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
+- 静态检查结果：
+  - `npm run build` 已在本轮临时服务启动前通过。
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+
+## 记录时间
+
+- 日期：2026-06-06
+- 阶段：MVP 编码阶段第 11 轮
 
 ## 第 10 轮已完成
 
@@ -758,4 +1074,4 @@
 
 ## 下一步建议
 
-下一轮建议使用真实 `.env.local` 配置验证 `AI_PROVIDER=openai-compatible` 的端到端生成流程，并根据实际 provider 响应微调 prompt、adapter 错误处理和安全诊断日志。后续仍需保持服务端读取密钥、前端不暴露密钥、保留 mock provider 边界、继续使用 `POST /api/travel-plans/generate`，并继续后置数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史、方案对比和行程优化。
+当前建议以第 14 轮发布准备状态为准：进入部署阶段前，先确认目标部署模式为 `AI_PROVIDER=mock` 或 `AI_PROVIDER=openai-compatible`。若使用真实 AI，请只在部署平台服务端环境变量中配置 `AI_API_KEY`、`AI_MODEL` 和 `AI_CHAT_COMPLETIONS_URL`，并按 `docs/09-release-checklist.md` 复验 mock、openai-compatible、缺配置错误路径和密钥泄露检查。后续仍需保持服务端读取密钥、前端不暴露密钥、保留 mock provider 边界、继续使用 `POST /api/travel-plans/generate`，并继续后置数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史、方案对比和行程优化。

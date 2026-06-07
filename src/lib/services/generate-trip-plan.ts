@@ -85,6 +85,49 @@ function applyServerTripPlanFields(
   };
 }
 
+const allowedVariableInfoTypes = new Set([
+  "ticket",
+  "openingHours",
+  "transportDuration",
+  "transportPrice",
+  "reservation",
+  "weather",
+]);
+
+function normalizeVariableInfoTypes(parsedTripPlan: unknown): unknown {
+  if (!isRecord(parsedTripPlan) || !Array.isArray(parsedTripPlan.dailyItinerary)) {
+    return parsedTripPlan;
+  }
+
+  return {
+    ...parsedTripPlan,
+    dailyItinerary: parsedTripPlan.dailyItinerary.map((day) => {
+      if (!isRecord(day) || !Array.isArray(day.items)) {
+        return day;
+      }
+
+      return {
+        ...day,
+        items: day.items.map((item) => {
+          if (!isRecord(item) || !("variableInfoTypes" in item)) {
+            return item;
+          }
+
+          return {
+            ...item,
+            variableInfoTypes: Array.isArray(item.variableInfoTypes)
+              ? item.variableInfoTypes.filter(
+                  (value): value is string =>
+                    typeof value === "string" && allowedVariableInfoTypes.has(value),
+                )
+              : [],
+          };
+        }),
+      };
+    }),
+  };
+}
+
 function buildRetryPrompt(prompt: TripPlanPrompt, previousErrorCode: ApiErrorCode): TripPlanPrompt {
   return {
     systemPrompt: prompt.systemPrompt,
@@ -96,6 +139,20 @@ function buildRetryPrompt(prompt: TripPlanPrompt, previousErrorCode: ApiErrorCod
       "请只返回一个合法 JSON object，严格匹配字段结构，不要输出解释文字、Markdown 或代码块。",
     ].join("\n"),
   };
+}
+
+function logSchemaValidationDiagnostic(validationResult: { error: { issues: Array<{
+  code: string;
+  message: string;
+  path: Array<PropertyKey>;
+}> } }) {
+  console.warn("[trip-plan-schema-validation]", {
+    issues: validationResult.error.issues.slice(0, 12).map((issue) => ({
+      code: issue.code,
+      path: issue.path.join("."),
+      message: issue.message,
+    })),
+  });
 }
 
 function getMaxAttempts(providerName: AIProviderValue) {
@@ -181,14 +238,16 @@ export async function generateTripPlan(request: GenerateTripPlanRequest): Promis
       throw error;
     }
 
+    const normalizedTripPlan = normalizeVariableInfoTypes(parsedTripPlan);
     const tripPlanWithServerFields = applyServerTripPlanFields(
-      parsedTripPlan,
+      normalizedTripPlan,
       request,
       provider.name,
     );
     const validationResult = TripPlanSchema.safeParse(tripPlanWithServerFields);
 
     if (!validationResult.success) {
+      logSchemaValidationDiagnostic(validationResult);
       lastGenerationError = new TripGenerationError(
         "AI_SCHEMA_VALIDATION_ERROR",
         "AI response does not match TripPlan schema.",

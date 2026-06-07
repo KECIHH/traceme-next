@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 迹遇 Next
 
-## Getting Started
+迹遇 Next 是一个旅行计划草稿生成 MVP。用户填写出发地、目的地、日期、人数、预算和偏好后，应用通过服务端生成一份结构化旅行计划草稿，并在页面中展示每日行程、预算参考、风险提醒、用户自行确认事项，以及 Markdown 复制/下载入口。
 
-First, run the development server:
+当前输出仅作为旅行规划草稿。门票、营业时间、酒店价格、交通班次、交通价格、天气等实时或易变信息需要用户在出行前自行核对。
+
+## 当前 MVP 能力
+
+- 旅行信息表单：支持出发地、目的地、日期、人数、预算口径、偏好和节奏。
+- 本地目的地推荐：使用静态推荐项回填目的地，不代表实时热度或实时价格。
+- 旅行计划生成：统一通过服务端 `POST /api/travel-plans/generate`。
+- Provider 切换：支持 `AI_PROVIDER=mock` 和 `AI_PROVIDER=openai-compatible`。
+- 结构化结果展示：包含总览、每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、用户自行确认事项和免责声明。
+- Markdown 输出：支持复制全文和下载 Markdown。
+- 契约校验：请求和结果使用 Zod schema 校验，结果天数和用户确认事项有基础约束。
+- 错误提示：前端展示用户友好的错误文案，不展示底层 provider 响应或敏感配置。
+
+## 技术栈
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Zod
+- Node.js built-in test runner + `tsx`
+- ESLint
+
+## 本地启动
+
+安装依赖：
+
+```bash
+npm install
+```
+
+准备本地环境变量文件：
+
+```powershell
+Copy-Item .env.local.example .env.local
+```
+
+开发模式：
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:3000](http://localhost:3000)。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+生产构建与本地启动：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+## 测试与检查
 
-To learn more about Next.js, take a look at the following resources:
+发布前建议依次运行：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm test
+npm run lint
+npm run build
+npx tsc --noEmit
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Mock 模式
 
-## Deploy on Vercel
+mock 模式用于本地开发、离线验收和无密钥演示。它不会调用真实 AI 服务，也不会读取 `AI_API_KEY`。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+在 `.env.local` 中配置：
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+AI_PROVIDER=mock
+AI_API_KEY=
+AI_MODEL=
+AI_CHAT_COMPLETIONS_URL=
+AI_REQUEST_TIMEOUT_MS=
+```
+
+`AI_PROVIDER` 缺失时，服务端也会默认使用 mock provider。
+
+## OpenAI-Compatible 模式
+
+`openai-compatible` 模式用于调用兼容 Chat Completions 或 Responses 格式的服务端 AI Provider。密钥和 endpoint 只允许放在服务端环境变量中。
+
+需要配置：
+
+```env
+AI_PROVIDER=openai-compatible
+AI_API_KEY=
+AI_MODEL=
+AI_CHAT_COMPLETIONS_URL=
+AI_REQUEST_TIMEOUT_MS=
+```
+
+变量说明：
+
+- `AI_PROVIDER`：`mock` 或 `openai-compatible`。
+- `AI_API_KEY`：服务端使用的 AI Provider 密钥。
+- `AI_MODEL`：服务端请求的模型名。
+- `AI_CHAT_COMPLETIONS_URL`：兼容 Chat Completions 或 Responses 的服务端 endpoint。
+- `AI_REQUEST_TIMEOUT_MS`：可选，正整数毫秒值；留空时使用服务端默认超时。
+
+如果选择 `openai-compatible` 但缺少必要配置，接口会返回 `AI_PROVIDER_CONFIG_ERROR`，不会静默 fallback 到 mock。
+
+## 安全提醒
+
+- API Key 只放在服务端 `.env.local` 或部署平台的服务端环境变量中。
+- 不要把真实 API Key 写入 README、docs、源码、测试、浏览器端变量或 `NEXT_PUBLIC_*` 变量。
+- 不要提交 `.env.local`。
+- 真实 AI 输出仍是草稿，不代表门票、营业时间、酒店价格、交通班次、天气等信息一定准确。
+
+## 当前未实现
+
+- 数据库。
+- 用户登录。
+- 地图。
+- 天气。
+- 联网搜索。
+- PDF 导出。
+- 版本历史。
+- 保存历史或保存到笔记。
+- 方案对比。
+- 行程优化。
+- 真实票价、酒店价格、门票、交通班次、天气等实时数据能力。
+- 非 Chat Completions / Responses 兼容格式的第三方 Provider。

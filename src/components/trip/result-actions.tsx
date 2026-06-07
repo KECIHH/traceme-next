@@ -29,16 +29,7 @@ function getMarkdownFileName(plan: TripPlan) {
   return `${prefix}旅行计划-${plan.input.startDate}.md`;
 }
 
-async function copyTextToClipboard(text: string) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-      // Fall through to the textarea fallback for browsers with stricter clipboard permissions.
-    }
-  }
-
+function copyTextWithTextArea(text: string) {
   const textArea = document.createElement("textarea");
   textArea.value = text;
   textArea.readOnly = true;
@@ -52,19 +43,34 @@ async function copyTextToClipboard(text: string) {
   textArea.select();
 
   try {
-    const copied = document.execCommand("copy");
-
-    if (!copied) {
-      throw new Error("Fallback copy command failed.");
-    }
+    return document.execCommand("copy");
   } finally {
     textArea.remove();
   }
 }
 
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through to the textarea fallback for browsers with stricter clipboard permissions.
+    }
+  }
+
+  if (copyTextWithTextArea(text)) {
+    return;
+  }
+
+  throw new Error("Copy is not available in this browser.");
+}
+
 export function ResultActions({ tripPlan }: ResultActionsProps) {
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [manualCopyText, setManualCopyText] = useState("");
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualCopyTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
   function showFeedback(nextFeedback: NonNullable<FeedbackState>) {
     setFeedback(nextFeedback);
@@ -87,18 +93,30 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!manualCopyText) {
+      return;
+    }
+
+    manualCopyTextAreaRef.current?.focus();
+    manualCopyTextAreaRef.current?.select();
+  }, [manualCopyText]);
+
   async function handleCopy() {
+    const markdown = formatTripPlanMarkdown(tripPlan);
+
     try {
-      const markdown = formatTripPlanMarkdown(tripPlan);
       await copyTextToClipboard(markdown);
+      setManualCopyText("");
       showFeedback({
         type: "success",
         message: "已复制 Markdown 全文。",
       });
     } catch {
+      setManualCopyText(markdown);
       showFeedback({
-        type: "error",
-        message: "复制失败，请稍后重试或手动选择内容。",
+        type: "success",
+        message: "已展开 Markdown 全文，可手动复制。",
       });
     }
   }
@@ -168,6 +186,20 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
         >
           {feedback.message}
         </p>
+      ) : null}
+      {manualCopyText ? (
+        <div className="mt-3">
+          <p className="mb-2 break-words text-sm leading-6 text-emerald-900">
+            已展开 Markdown 全文，可手动复制。
+          </p>
+          <textarea
+            ref={manualCopyTextAreaRef}
+            readOnly
+            value={manualCopyText}
+            className="h-48 w-full resize-y rounded-md border border-emerald-200 bg-white p-3 font-mono text-xs leading-5 text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Markdown 全文"
+          />
+        </div>
       ) : null}
     </div>
   );
