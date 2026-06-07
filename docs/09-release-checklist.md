@@ -105,7 +105,7 @@ rg -n "sk-[A-Za-z0-9]|Bearer\\s+|Authorization\\s*:|NEXT_PUBLIC_AI_API_KEY" READ
 - Git。
 - Docker。
 - Docker Compose。
-- 可访问 `git@github.com:KECIHH/traceme-next.git` 的 SSH key，或通过 `TRACEME_REPO_URL` 覆盖为可访问的仓库地址。
+- 可访问 `https://github.com/KECIHH/traceme-next.git`。默认使用 HTTPS 克隆公开仓库，不要求服务器配置 GitHub SSH key；私有仓库或 SSH 部署可通过 `TRACEME_REPO_URL` 覆盖为可访问的仓库地址。
 
 一行部署命令：
 
@@ -121,7 +121,7 @@ curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/de
 
 部署脚本行为：
 
-- 克隆或更新 `main` 分支。
+- 默认从 `https://github.com/KECIHH/traceme-next.git` 克隆或更新 `main` 分支。
 - 如果服务器项目目录没有 `.env`，创建只含空值/mock 默认的 `.env`。
 - 执行 `docker compose build`。
 - 执行 `docker compose up -d`。

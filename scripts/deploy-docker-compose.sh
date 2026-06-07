@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-REPO_URL="${TRACEME_REPO_URL:-git@github.com:KECIHH/traceme-next.git}"
+REPO_URL="${TRACEME_REPO_URL:-https://github.com/KECIHH/traceme-next.git}"
 APP_DIR="${TRACEME_APP_DIR:-$HOME/traceme-next}"
 BRANCH="${TRACEME_BRANCH:-main}"
 
@@ -38,6 +38,12 @@ if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" pull --ff-only origin "$BRANCH"
 else
   mkdir -p "$(dirname "$APP_DIR")"
+
+  if [ -d "$APP_DIR" ] && [ -n "$(find "$APP_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+    echo "$APP_DIR exists but is not a git repository. Move it away or set TRACEME_APP_DIR." >&2
+    exit 1
+  fi
+
   git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
 fi
 

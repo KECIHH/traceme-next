@@ -56,7 +56,7 @@ npm run start
 
 ## Docker Compose 部署
 
-云服务器测试部署推荐使用 Docker Compose。服务器需要预先安装 Git、Docker 和 Docker Compose，并配置好访问 GitHub 仓库的权限。
+云服务器测试部署推荐使用 Docker Compose。服务器需要预先安装 Git、Docker 和 Docker Compose。默认使用 HTTPS 克隆公开仓库，不要求服务器配置 GitHub SSH key。
 
 一行部署命令：
 
@@ -70,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/de
 curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/deploy-docker-compose.sh | TRACEME_APP_DIR=/opt/traceme-next APP_PORT=3000 sh
 ```
 
-部署脚本会克隆或更新 `git@github.com:KECIHH/traceme-next.git`，执行 Docker Compose 构建和启动，并运行首页与 `POST /api/travel-plans/generate` smoke test。
+部署脚本会克隆或更新 `https://github.com/KECIHH/traceme-next.git`，执行 Docker Compose 构建和启动，并运行首页与 `POST /api/travel-plans/generate` smoke test。私有仓库或 SSH 部署可通过 `TRACEME_REPO_URL` 覆盖仓库地址。
 
 首次部署会在服务器项目目录创建未提交的 `.env` mock 示例。真实 AI 部署时，只在服务器 `.env` 中配置以下变量名对应的服务端值：
 

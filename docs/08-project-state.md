@@ -1,3 +1,83 @@
+# 项目状态记录 - MVP 编码阶段第 16 轮
+
+## 第 16 轮当前状态
+
+- 本轮定位为云服务器 Docker Compose 测试部署与线上 smoke test，未实现新产品功能。
+- 实际部署状态：未部署成功；已收到云服务器一键部署失败摘要，失败点为默认 SSH 克隆仓库时服务器没有 GitHub public key；当前仍没有可验证的测试部署 URL。
+- 目标部署模式：`AI_PROVIDER=openai-compatible`。
+- 目标 provider 形态：服务端 `AI_CHAT_COMPLETIONS_URL` 指向中转站 `/v1/responses` endpoint，服务端 `AI_MODEL` 使用当前 DeepSeek 测试模型值。
+- 本轮未记录、输出、提交或写入任何真实 API Key、真实 provider endpoint、真实模型值或 `.env` 内容。
+- 本轮继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未修改核心业务逻辑。
+  - 未删除 mock provider。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+  - 未执行 git commit。
+
+## 第 16 轮已执行检查
+
+- 本地工作区进入本轮时为干净状态：`git status --short --branch` 显示 `## main...origin/main`。
+- 本地 Docker CLI 与 Docker Compose 插件可用：
+  - `docker --version` 可返回版本。
+  - `docker compose version` 可返回版本。
+- 本地 Docker daemon 当前不可用，`docker info` 无法连接 Docker Desktop Linux engine；这不是云服务器验证结果。
+- `node --check scripts/smoke-travel-api.mjs` 已通过，smoke 脚本语法可解析。
+- 已复核 `openai-compatible` provider 支持 `/v1/responses` 形态；当配置 URL 路径以 `/responses` 结尾时会走 Responses 请求体。
+- 已执行仓库敏感模式扫描，命中项为安全说明文字和服务端正常构造 `Authorization` header 的代码位置；未发现真实 API Key 值。
+
+## 第 16 轮未完成项与阻塞原因
+
+- 未能在云服务器确认 Docker daemon 状态；当前一键部署命令在拉取仓库阶段失败，尚未进入 Docker 检查、构建或启动阶段。
+- 未能确认云服务器 `.env` 或服务端环境变量状态，因为不能读取或输出服务器真实配置。
+- 未执行云服务器 `docker compose build` 或 `docker compose up -d`。
+- 未获取测试部署 URL；目标 URL 仍待服务器公网 IP 与实际 `APP_PORT` 确认。
+- 未对线上首页执行 smoke test。
+- 未对线上 `POST /api/travel-plans/generate` 执行合法请求 smoke test。
+- 未完成线上错误响应泄露检查。
+- 因缺少可验证部署 URL 和线上 smoke 结果，本轮不标记部署成功，也不假装 API 已在线通过。
+
+## 第 16 轮待用户贴回的脱敏结果
+
+- 云服务器 Docker / Docker Compose / Docker daemon 检查摘要。
+- 云服务器 `.env` 存在性、必需变量是否非空、是否存在 `NEXT_PUBLIC_*` AI 密钥的脱敏摘要。
+- `docker compose build`、`docker compose up -d`、`docker compose ps` 的非敏感摘要。
+- 容器日志非敏感摘要，确认没有 API Key、`Bearer`、`Authorization`、堆栈或完整 provider URL 泄露。
+- 测试部署 URL，格式预期为 `http://服务器公网IP:APP_PORT`。
+- `node scripts/smoke-travel-api.mjs --base-url "$BASE_URL" --expect-provider openai-compatible` 的 JSON 摘要。
+
+## 第 16 轮发布建议
+
+- 当前不建议进入正式发布。
+- 只有云服务器 Docker Compose 部署完成、首页 smoke test 通过、API smoke test 返回 `source.provider=openai-compatible` 与 `source.kind=ai`、天数一致、五类 `userVerifyItems` 齐全，并且响应与日志摘要均无敏感泄露后，才建议进入正式发布。
+
+## 第 16 轮审查后修复
+
+- 审查结论：不通过；已发现可在部署脚本和文档中修复的一键部署阻塞：默认仓库地址使用 SSH，导致未配置 GitHub SSH key 的云服务器执行一键部署时出现 `Permission denied (publickey)`。
+- 已复核当前仓库和本机环境：
+  - 工作区变更范围为部署脚本、部署文档、发布检查清单和 `docs/08-project-state.md`。
+  - 未发现仓库内存在真实云服务器 URL、SSH 配置别名或可直接完成线上 smoke 的远程部署入口。
+  - 本地 Docker CLI 与 Docker Compose 插件可用，但本地 Docker daemon 不可用；这仍不能替代云服务器 Docker daemon 验证。
+- 本轮修复动作：
+  - `scripts/deploy-docker-compose.sh` 默认仓库地址改为 `https://github.com/KECIHH/traceme-next.git`，避免公开仓库一键部署依赖服务器 GitHub SSH key。
+  - 保留 `TRACEME_REPO_URL` 覆盖能力，私有仓库或 SSH 部署仍可自行指定仓库地址。
+  - 当目标部署目录已存在但不是 git 仓库且非空时，脚本会明确报错，避免失败 clone 后的异常目录被误用。
+  - README 和 `docs/09-release-checklist.md` 已同步默认 HTTPS 克隆口径。
+  - 继续明确记录“未部署成功”和“缺少测试部署 URL”，避免把阻塞状态写成部署成功。
+- 注意：服务器一键命令会从 GitHub `main` 分支读取 raw 脚本；本地修复需要进入 `main` 后，服务器重跑一键命令才会拿到新版 HTTPS 默认仓库地址。
+- 服务器复测结果：继续执行 GitHub `main` raw 一键命令时仍报 `Permission denied (publickey)`，已确认远端 raw 脚本当前仍是旧版 SSH 默认仓库地址；因此本地修复尚未对服务器一键命令生效。
+- 临时绕过方案：在服务器执行旧 raw 脚本时显式传入 `TRACEME_REPO_URL=https://github.com/KECIHH/traceme-next.git`；长期方案是将本地部署脚本修复提交并推送到 GitHub `main`。
+- 修复后复验状态：
+  - Docker Compose 启动：未复验，缺少云服务器执行能力；本地 Docker daemon 不可用。
+  - 线上首页：未复验，缺少真实测试部署 URL。
+  - 线上 `POST /api/travel-plans/generate`：未复验，缺少真实测试部署 URL。
+  - 错误响应敏感信息扫描：线上未复验；本地新增记录未写入真实 API Key、真实 provider endpoint、真实模型值或 `.env` 内容。
+- 修复后发布建议保持不变：不建议进入正式发布；必须先拿到云服务器 Docker/Compose 摘要、容器状态、测试部署 URL、首页/API smoke 结果和脱敏日志/错误摘要。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 16 轮
+
 # 项目状态记录 - MVP 编码阶段第 15 轮
 
 ## 第 15 轮当前状态
@@ -29,7 +109,7 @@
   - `.dockerignore`：排除 `.env*`、`.next`、`node_modules`、日志、coverage、git 元数据等不应进入镜像上下文的内容。
   - `docker-compose.yml`：声明服务、镜像构建、宿主机端口映射和服务端 AI 环境变量名；未写入真实值。
 - 已新增部署与验收脚本：
-  - `scripts/deploy-docker-compose.sh`：克隆/更新 `git@github.com:KECIHH/traceme-next.git`，必要时创建未提交的 `.env` mock 示例，执行 `docker compose build`、`docker compose up -d`，并运行 smoke test。
+  - `scripts/deploy-docker-compose.sh`：默认克隆/更新 `https://github.com/KECIHH/traceme-next.git`，必要时创建未提交的 `.env` mock 示例，执行 `docker compose build`、`docker compose up -d`，并运行 smoke test；私有仓库或 SSH 部署可通过 `TRACEME_REPO_URL` 覆盖。
   - `scripts/smoke-travel-api.mjs`：支持 `--base-url` 和 `--expect-provider mock|openai-compatible|missing-config`，验证首页和 `POST /api/travel-plans/generate`，只输出安全摘要。
 - 已更新发布文档：
   - `README.md` 增加 Docker Compose 云服务器部署、一行部署命令、环境变量名清单和部署后 smoke test。
