@@ -1,0 +1,15 @@
+services:
+  traceme-next:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: traceme-next:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_CHAT_COMPLETIONS_URL: ${AI_CHAT_COMPLETIONS_URL:-}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-}

@@ -1,6 +1,6 @@
 # MVP 发布检查清单
 
-本文档用于第 14 轮 MVP 发布准备。当前发布对象仍是旅行计划草稿生成 MVP，不包含数据库、登录、地图、天气、联网搜索、PDF、版本历史、方案对比或行程优化。
+本文档用于第 15 轮 MVP 部署环境确认与部署验收。当前发布对象仍是旅行计划草稿生成 MVP，不包含数据库、登录、地图、天气、联网搜索、PDF、版本历史、方案对比或行程优化。
 
 ## 发布前命令检查
 
@@ -98,15 +98,76 @@ rg -n "sk-[A-Za-z0-9]|Bearer\\s+|Authorization\\s*:|NEXT_PUBLIC_AI_API_KEY" READ
 
 不要把 `.env.local` 内容复制到 README、docs、源码、测试或 issue/PR 描述中。
 
+## Docker Compose 云服务器部署
+
+目标云服务器需要预先安装：
+
+- Git。
+- Docker。
+- Docker Compose。
+- 可访问 `git@github.com:KECIHH/traceme-next.git` 的 SSH key，或通过 `TRACEME_REPO_URL` 覆盖为可访问的仓库地址。
+
+一行部署命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/deploy-docker-compose.sh | sh
+```
+
+可选覆盖：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/deploy-docker-compose.sh | TRACEME_APP_DIR=/opt/traceme-next APP_PORT=3000 sh
+```
+
+部署脚本行为：
+
+- 克隆或更新 `main` 分支。
+- 如果服务器项目目录没有 `.env`，创建只含空值/mock 默认的 `.env`。
+- 执行 `docker compose build`。
+- 执行 `docker compose up -d`。
+- 执行 `node scripts/smoke-travel-api.mjs` 验证首页和 `POST /api/travel-plans/generate`。
+
+真实 AI 部署前，应先在服务器项目目录的 `.env` 中配置服务端环境变量；不要提交 `.env`。
+
+## 部署后 Smoke Test
+
+部署后运行：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url https://your-domain.example --expect-provider openai-compatible
+```
+
+mock 部署运行：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url https://your-domain.example --expect-provider mock
+```
+
+缺配置错误路径只用于临时环境：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-provider missing-config
+```
+
+通过标准：
+
+- 首页返回 HTTP 200，且包含应用标识文本。
+- mock 部署返回 HTTP 200、`ok: true`、`source.provider=mock`、`source.kind=mock`。
+- 真实 AI 部署返回 HTTP 200、`ok: true`、`source.provider=openai-compatible`、`source.kind=ai`。
+- `input.days` 与 `dailyItinerary.length` 一致。
+- `userVerifyItems` 覆盖门票/预约、营业时间、酒店价格、交通班次/价格、天气五类。
+- smoke 输出只包含安全摘要，不包含真实 API Key、模型名、完整 provider URL、完整 prompt 或完整响应。
+
 ## 当前工作区改动归属
 
-第 14 轮开始时的状态：
+第 15 轮开始时的状态：
 
-- Staged：`docs/08-project-state.md`、`package-lock.json`、`package.json`、`tests/core-contracts.test.ts`，归属第 13 轮测试、脚本和项目状态记录。
-- Unstaged：`src/components/trip/result-actions.tsx`、`src/components/trip/trip-planner-form.tsx`、`src/lib/ai/build-trip-plan-prompt.ts`、`src/lib/ai/openai-compatible-provider.ts`、`src/lib/services/generate-trip-plan.ts`，归属历史功能、provider、prompt、UI 和生成链路改动，不归属第 14 轮发布文档准备。
-- Untracked：第 14 轮开始时无 untracked 文件。
+- Staged：无。
+- Unstaged：无。
+- Untracked：无。
+- 当前分支：`main...origin/main`。
 
-第 14 轮本身只应新增或修改发布说明、发布检查清单、环境变量示例和项目状态记录，不应修改核心业务逻辑。
+第 15 轮本身只应新增或修改部署说明、Docker Compose 部署包装、smoke/deploy 脚本、发布检查清单和项目状态记录，不应修改核心业务逻辑。
 
 ## 部署环境变量清单
 
@@ -125,6 +186,8 @@ mock 部署或演示：
 - `AI_MODEL`：必填。
 - `AI_CHAT_COMPLETIONS_URL`：必填。
 - `AI_REQUEST_TIMEOUT_MS`：可选，留空时使用服务端默认值。
+
+Docker Compose 额外支持 `APP_PORT` 控制服务器宿主机端口；它不是 AI 配置变量。
 
 ## 已知限制
 

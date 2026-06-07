@@ -54,6 +54,37 @@ npm run build
 npm run start
 ```
 
+## Docker Compose 部署
+
+云服务器测试部署推荐使用 Docker Compose。服务器需要预先安装 Git、Docker 和 Docker Compose，并配置好访问 GitHub 仓库的权限。
+
+一行部署命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/deploy-docker-compose.sh | sh
+```
+
+默认部署目录为 `$HOME/traceme-next`，默认服务端口为 `3000`。如需覆盖：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/deploy-docker-compose.sh | TRACEME_APP_DIR=/opt/traceme-next APP_PORT=3000 sh
+```
+
+部署脚本会克隆或更新 `git@github.com:KECIHH/traceme-next.git`，执行 Docker Compose 构建和启动，并运行首页与 `POST /api/travel-plans/generate` smoke test。
+
+首次部署会在服务器项目目录创建未提交的 `.env` mock 示例。真实 AI 部署时，只在服务器 `.env` 中配置以下变量名对应的服务端值：
+
+```env
+AI_PROVIDER=
+AI_API_KEY=
+AI_MODEL=
+AI_CHAT_COMPLETIONS_URL=
+AI_REQUEST_TIMEOUT_MS=
+APP_PORT=
+```
+
+不要把服务器 `.env` 或本地 `.env.local` 提交到 git，也不要把真实 API Key 写入 `NEXT_PUBLIC_*` 变量。
+
 ## 测试与检查
 
 发布前建议依次运行：
@@ -104,6 +135,28 @@ AI_REQUEST_TIMEOUT_MS=
 - `AI_REQUEST_TIMEOUT_MS`：可选，正整数毫秒值；留空时使用服务端默认超时。
 
 如果选择 `openai-compatible` 但缺少必要配置，接口会返回 `AI_PROVIDER_CONFIG_ERROR`，不会静默 fallback 到 mock。
+
+本项目的 `openai-compatible` adapter 可用于 OpenAI Responses endpoint 或兼容 Chat Completions 的服务端 endpoint。DeepSeek 等兼容 OpenAI 调用形态的服务，需要将完整服务端 endpoint 填入 `AI_CHAT_COMPLETIONS_URL`。
+
+## Smoke Test
+
+部署后可运行：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-provider mock
+```
+
+真实 AI 部署时：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url https://your-domain.example --expect-provider openai-compatible
+```
+
+缺配置错误路径只用于临时验收：
+
+```bash
+node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-provider missing-config
+```
 
 ## 安全提醒
 

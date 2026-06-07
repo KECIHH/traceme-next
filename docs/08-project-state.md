@@ -1,3 +1,119 @@
+# 项目状态记录 - MVP 编码阶段第 15 轮
+
+## 第 15 轮当前状态
+
+- 本轮定位为部署环境确认与部署验收，未实现新产品功能。
+- 实际部署状态：未部署，只完成部署前验收。
+- 目标部署形态：本地 Windows 生产模式验收 + 云服务器 Docker Compose 测试部署。
+- 目标 AI 模式：以 `AI_PROVIDER=openai-compatible` 真实 DeepSeek 路径为主，同时保留并复验 `AI_PROVIDER=mock` 和 `openai-compatible` 缺配置错误路径。
+- 当前工作区进入本轮前为干净状态：`git status --short --branch` 显示 `## main...origin/main`。
+- 已确认 `.gitignore` 覆盖：
+  - `.env.local` 命中 `.env*`。
+  - `.next` 命中 `/.next/`。
+  - `node_modules` 命中 `/node_modules`。
+- 已确认 `.env.local.example` 只包含变量名和空值示例，未包含真实 API Key、真实模型名、真实 provider URL 或真实超时值。
+- 本轮继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除 mock provider。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+  - 未提交、打印、记录或展示任何真实 API Key。
+  - 未提交 `.env.local`。
+
+## 第 15 轮部署支持改动
+
+- 已更新 `next.config.ts`：
+  - 增加 `output: "standalone"`，用于 Docker 生产镜像。
+  - 未修改核心业务逻辑、API route 或 provider 选择逻辑。
+- 已新增 Docker Compose 部署文件：
+  - `Dockerfile`：多阶段构建，使用 Next.js standalone 输出运行生产服务。
+  - `.dockerignore`：排除 `.env*`、`.next`、`node_modules`、日志、coverage、git 元数据等不应进入镜像上下文的内容。
+  - `docker-compose.yml`：声明服务、镜像构建、宿主机端口映射和服务端 AI 环境变量名；未写入真实值。
+- 已新增部署与验收脚本：
+  - `scripts/deploy-docker-compose.sh`：克隆/更新 `git@github.com:KECIHH/traceme-next.git`，必要时创建未提交的 `.env` mock 示例，执行 `docker compose build`、`docker compose up -d`，并运行 smoke test。
+  - `scripts/smoke-travel-api.mjs`：支持 `--base-url` 和 `--expect-provider mock|openai-compatible|missing-config`，验证首页和 `POST /api/travel-plans/generate`，只输出安全摘要。
+- 已更新发布文档：
+  - `README.md` 增加 Docker Compose 云服务器部署、一行部署命令、环境变量名清单和部署后 smoke test。
+  - `docs/09-release-checklist.md` 更新为第 15 轮部署环境确认与部署验收口径，增加 Docker Compose 部署步骤和部署后 smoke test 标准。
+
+## 第 15 轮验证结果
+
+- 发布前命令检查：
+  - `npm test` 已通过，7 个测试全部 pass。
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过，并已生成 `.next/standalone`。
+  - `npx tsc --noEmit` 已通过。
+- 配置与安全检查：
+  - `docker compose config` 已通过配置解析。
+  - `node --check scripts/smoke-travel-api.mjs` 已通过。
+  - `.env.local.example` 仍为空值示例。
+  - 本轮未读取或输出 `.env.local` 的真实值；真实 AI 验收仅依赖 Next.js 生产服务加载本地环境。
+  - README、docs、src、tests 和 `.env.local.example` 的敏感模式扫描未发现真实 API Key；命中项为安全说明文字或服务端 provider 中正常构造 `Authorization` header 的代码位置，需要发布前人工复核但当前未发现真实密钥值。
+- 本地生产服务 smoke test：
+  - `AI_PROVIDER=mock`：首页 HTTP 200；API HTTP 200；`ok=true`；`source.provider=mock`；`source.kind=mock`；`input.days=3`；`dailyItinerary.length=3`；天数一致；五类用户自行确认事项齐全；响应摘要未命中敏感泄露模式。
+  - `AI_PROVIDER=openai-compatible` 缺配置：首页 HTTP 200；API HTTP 500；`ok=false`；`error.code=AI_PROVIDER_CONFIG_ERROR`；包含 `requestId`；响应摘要未命中敏感泄露模式。
+  - 真实 `AI_PROVIDER=openai-compatible`：首页 HTTP 200；API HTTP 200；`ok=true`；`source.provider=openai-compatible`；`source.kind=ai`；`input.days=3`；`dailyItinerary.length=3`；天数一致；五类用户自行确认事项齐全；响应摘要未命中敏感泄露模式。
+- Docker 本机验证：
+  - 本机已安装 Docker CLI 和 Docker Compose 插件。
+  - 当前 Docker daemon 未启动，`docker info` 无法连接 Docker Desktop Linux engine。
+  - 因此本轮未能在本机执行 `docker compose build`、`docker compose up -d` 或容器内 smoke test；云服务器 Docker Compose 实际部署仍需在目标服务器执行后补充部署 URL 和 smoke 结果。
+
+## 第 15 轮部署环境变量建议
+
+- mock 部署：
+  - `AI_PROVIDER=mock`
+  - `AI_API_KEY` 留空。
+  - `AI_MODEL` 留空。
+  - `AI_CHAT_COMPLETIONS_URL` 留空。
+  - `AI_REQUEST_TIMEOUT_MS` 留空或填写正整数毫秒值。
+- 真实 AI 部署：
+  - `AI_PROVIDER=openai-compatible`
+  - `AI_API_KEY`：必填，只配置在服务器环境变量或服务器 `.env`。
+  - `AI_MODEL`：必填。
+  - `AI_CHAT_COMPLETIONS_URL`：必填，填写服务端完整 endpoint。
+  - `AI_REQUEST_TIMEOUT_MS`：可选，留空时使用服务端默认值。
+- Docker Compose 额外支持：
+  - `APP_PORT`：控制宿主机端口，不是 AI 配置变量。
+
+## 第 15 轮仍需用户确认
+
+- 云服务器系统环境、Docker daemon 状态、仓库访问方式和目标部署目录。
+- 真实部署域名或公网 URL。
+- 云服务器 `.env` 中的真实服务端变量是否已配置完成。
+- 实际执行一行部署命令后的部署 URL 和部署后 smoke test 结果。
+
+## 第 15 轮发布建议
+
+- 当前本地生产模式、mock 路径、缺配置错误路径和真实 `openai-compatible` 路径均已通过验收。
+- Docker Compose 配置和部署脚本已补齐，但容器运行级验证因本机 Docker daemon 未启动而未完成。
+- 建议进入云服务器测试部署；待目标服务器 `docker compose build/up` 和部署 URL smoke test 通过后，再建议正式发布。
+
+## 第 15 轮审查后修复
+
+- 审查结论：通过。
+- 审查未列出 P0、P1 或 P2 问题；本次修复不修改业务代码、API route、provider、mock provider、schema、页面功能或部署脚本。
+- 本次修复仅更新 `docs/08-project-state.md`，记录审查后处理结论与复验结果。
+- 继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未删除 mock provider。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+  - 未读取、打印、提交、记录或展示任何真实 API Key。
+  - 未提交 `.env.local`。
+- 审查后复验结果：
+  - `npm test` 已通过，7 个测试全部 pass。
+  - `npm run lint` 已通过。
+  - `npm run build` 已通过。
+  - `npx tsc --noEmit` 已通过。
+  - 本地生产 `AI_PROVIDER=mock` smoke 已通过：首页 HTTP 200，API HTTP 200，`ok=true`，`source.provider=mock`，`source.kind=mock`，天数一致，五类用户自行确认事项齐全，响应摘要未命中敏感泄露模式。
+  - 本地生产 `AI_PROVIDER=openai-compatible` 缺配置 smoke 已通过：首页 HTTP 200，API HTTP 500，`ok=false`，`error.code=AI_PROVIDER_CONFIG_ERROR`，包含 `requestId`，响应摘要未命中敏感泄露模式。
+  - 本地生产真实 `AI_PROVIDER=openai-compatible` smoke 已通过：首页 HTTP 200，API HTTP 200，`ok=true`，`source.provider=openai-compatible`，`source.kind=ai`，天数一致，五类用户自行确认事项齐全，响应摘要未命中敏感泄露模式。
+  - 当前没有真实部署 URL，因此未执行远程部署 URL smoke test。
+- 发布建议保持不变：暂不建议正式发布到生产；建议先在云服务器完成 Docker Compose 测试部署，并对部署 URL 执行 smoke test。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 15 轮
+
 # 项目状态记录 - MVP 编码阶段第 14 轮
 
 ## 第 14 轮当前状态
@@ -1074,4 +1190,4 @@
 
 ## 下一步建议
 
-当前建议以第 14 轮发布准备状态为准：进入部署阶段前，先确认目标部署模式为 `AI_PROVIDER=mock` 或 `AI_PROVIDER=openai-compatible`。若使用真实 AI，请只在部署平台服务端环境变量中配置 `AI_API_KEY`、`AI_MODEL` 和 `AI_CHAT_COMPLETIONS_URL`，并按 `docs/09-release-checklist.md` 复验 mock、openai-compatible、缺配置错误路径和密钥泄露检查。后续仍需保持服务端读取密钥、前端不暴露密钥、保留 mock provider 边界、继续使用 `POST /api/travel-plans/generate`，并继续后置数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史、方案对比和行程优化。
+当前建议以第 15 轮部署验收状态为准：本地生产模式、mock 路径、缺配置错误路径和真实 `AI_PROVIDER=openai-compatible` 路径均已通过验收；Docker Compose 配置和部署脚本已补齐，但本机 Docker daemon 未启动，容器运行级验证仍需在云服务器或可用 Docker 环境中执行。下一步是在目标云服务器配置服务端环境变量，执行 `scripts/deploy-docker-compose.sh` 或 README 中的一行部署命令，记录部署 URL，并按 `docs/09-release-checklist.md` 对部署 URL 执行 smoke test。后续仍需保持服务端读取密钥、前端不暴露密钥、保留 mock provider 边界、继续使用 `POST /api/travel-plans/generate`，并继续后置数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史、方案对比和行程优化。
