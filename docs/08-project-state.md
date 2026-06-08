@@ -1,3 +1,90 @@
+# 项目状态记录 - MVP 编码阶段第 18 轮
+
+## 第 18 轮当前状态
+
+- 本轮定位为测试版发布与发布后回归验收、隐私检查和回滚预案记录，未实现新产品功能。
+- 测试版发布口径已确认：`Beta` / `测试版` / `AI 草稿` / `需人工确认`。
+- 本轮不包装为稳定正式版，不承诺实时、准确、官方价格或保证结果。
+- 测试版访问地址统一记录为 `[测试版访问地址]`；真实 AI 服务统一记录为 `[真实 AI Provider]`。
+- 本轮计划复验现有线上测试部署，不重跑部署脚本，不主动重建或升级镜像。
+- 用户已提供真实线上测试入口供本轮私下复验；文档和输出继续仅记录 `[测试版访问地址]`，不记录真实服务器 IP。
+- 截至本轮记录时，测试版主要线上回归已通过，线上容器/服务日志隐私检查已完成，第 18 轮测试版发布后验收已闭环。
+- 本轮继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未修改核心业务逻辑。
+  - 未删除 mock provider。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+  - 未提交 `.env`、`.env.local` 或任何真实密钥。
+  - 未执行 git commit。
+
+## 第 18 轮已完成的本地检查
+
+- 工作区进入本轮时为干净状态，`git status --short` 无输出。
+- 已检查仓库公开文档、脚本、源码和当前环境变量名，未发现可直接用于本轮线上验收的真实访问地址。
+- 本机存在系统 Edge 浏览器，可用于后续临时浏览器自动化；项目未新增 Playwright 或其他浏览器自动化依赖。
+- 已确认 `.env.local`、`.env`、`.next`、`node_modules`、`.next-dev-log`、`tsconfig.tsbuildinfo` 和 `next-env.d.ts` 均被 `.gitignore` 覆盖。
+- 已执行仓库敏感模式摘要扫描：
+  - 未在源码、文档、测试或 `.env.local.example` 中发现真实 API Key。
+  - `Authorization`、`Bearer` 和 `NEXT_PUBLIC_AI_API_KEY` 命中项为安全说明文字、环境变量名或服务端 header 构造代码。
+  - `package-lock.json` 中存在非业务密钥形态的依赖文本命中，不属于项目 API Key 配置。
+  - IPv4 形态命中为本地/保留地址、示例地址或 SVG 资源数字数据，未记录真实服务器 IP。
+
+## 第 18 轮线上验收状态
+
+- 部署服务运行状态：`[测试版访问地址]` 首页返回 HTTP 200，包含 `TraceMe Next` 应用标识，页面响应未命中敏感泄露模式。
+- 线上首页桌面端 smoke test：已通过。1440px 桌面视口可访问首页，表单和目的地灵感区可见，初始态未发现横向溢出或敏感信息泄露。
+- 线上首页移动端 smoke test：已通过。390px 移动视口可访问首页，表单和目的地灵感区可见，未发现明显横向溢出、脚本错误或敏感信息泄露。
+- 线上真实 AI 完整生成流程：已通过。
+  - 表单填写成功。
+  - 推荐目的地点击后可回填目的地输入框。
+  - 提交后观察到生成中状态。
+  - 生成成功后展示完整结果，结果标记为 `AI 草稿`。
+  - 页面展示用户自行确认事项和免责声明。
+  - 点击“复制全文”后出现成功反馈；仪器化剪贴板复验确认 Markdown 全文非空，包含每日行程、用户自行确认事项和免责声明，且未出现 `undefined` 或 `null`。
+  - 点击“下载 Markdown”后出现下载反馈，临时下载目录中 `.md` 文件非空；下载文件随后已清理。
+- 线上合法 API 验收：已通过。合法请求返回 HTTP 200、`ok=true`、`source.provider=openai-compatible`、`source.kind=ai`、`input.days=3`、`dailyItinerary.length=3`，天数一致，`userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类；响应未命中敏感泄露模式。
+- 线上非法 API 验收：已通过。非法请求返回 HTTP 400、`ok=false`、`error.code=BAD_REQUEST`，包含 `requestId`；错误响应未命中 API Key、`Bearer`、`Authorization`、`api-key` 或堆栈泄露模式。
+- 页面承诺文案检查：当前源码、线上页面和文档继续以测试版、AI 草稿、参考信息和出发前自行确认为主要口径，未发现将 AI 输出承诺为实时、准确、官方价格或保证结果。
+- 线上容器/服务日志隐私检查：已通过。1Panel 中 `traceme-next-traceme-next-1` 容器日志仅包含 Next.js 版本、Local/Network 启动摘要和 Ready 状态；未发现真实服务器公网 IP、真实 API Key、真实 Provider 名称、Authorization、Bearer、api-key 或堆栈泄露。
+
+## 第 18 轮回滚预案
+
+- 如仅需下线测试版：在服务器项目目录执行 `docker compose stop` 或 `docker compose down`。
+- 如后续为修复阻塞问题发生过重建：先记录修复前 commit 或镜像摘要；回滚时切回上一已知可用 commit，重新执行 `docker compose build && docker compose up -d`，再对 `[测试版访问地址]` 执行 smoke test。
+- 回滚记录只写操作摘要、占位访问地址和结果，不写真实服务器 IP、真实 API Key、真实 Provider 名称、Authorization、Bearer token 或原始日志。
+
+## 第 18 轮验证结果
+
+- `npm test`：已通过，7 个测试全部 pass。
+- `npm run lint`：已通过。
+- `npm run build`：已通过。
+- `npx tsc --noEmit`：单独重跑已通过。本轮曾在 `npm run build` 并行生成 `.next/types` 时触发一次临时缺文件错误，build 完成后重跑通过，最终验收以单独重跑结果为准。
+
+## 第 18 轮发布判断
+
+- 是否已测试版发布：已作为测试版在 `[测试版访问地址]` 可访问；不包装为稳定正式版。
+- 发布后线上验收结果：已通过，包括首页桌面/移动 smoke、真实 AI 生成流程、复制全文、下载 Markdown、合法 API、非法 API 和线上容器/服务日志隐私检查。
+- 是否发现敏感信息泄露：本地 git 跟踪文件、本地文案、线上页面响应、线上合法 API 响应、线上非法 API 响应和线上容器/服务日志均未发现真实密钥、真实服务器公网 IP、真实 Provider 名称、Authorization、Bearer token、api-key 或堆栈泄露。
+- 是否发现产品阻塞问题：未发现新的 P0/P1 产品阻塞问题。
+- 回滚预案：已记录。
+- 是否建议继续公开测试：建议继续小范围测试版公开试用；不建议包装为稳定正式版，也不建议在测试反馈不足前扩大为大范围公开测试。
+
+## 第 18 轮审查后修复尝试
+
+- 审查结论为不通过，P0 原因为第 18 轮发布后线上验收缺少实际访问入口和服务器日志入口，不能证明测试版已发布并通过回归。
+- 用户已补充真实线上测试入口；本轮使用真实入口完成线上主要回归，但文档和输出继续只记录 `[测试版访问地址]`，不记录真实服务器 IP、真实 API Key、真实 Provider 名称或 Authorization 信息。
+- 当前可修复范围内无需修改源码、API 或核心业务逻辑；未新增数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+- 线上首页桌面端、移动端、真实 AI 生成流程、复制全文、下载 Markdown、线上合法 API 和线上非法 API 已补跑通过。
+- 线上日志隐私检查已补跑通过：1Panel 容器日志仅包含非敏感启动摘要，未发现真实服务器公网 IP、真实 API Key、真实 Provider 名称、Authorization、Bearer、api-key 或堆栈泄露。
+- 审查后本地复验已完成：敏感模式命中项仍为安全说明文字、环境变量名、服务端 header 构造代码、本地/示例地址或静态资源数字数据，未发现可确认的真实服务器 IP、真实 API Key、真实 Provider 名称或 Authorization 值泄露。
+- 审查后质量命令已重新通过：`npm test`、`npm run lint`、`npm run build`、`npx tsc --noEmit`。
+- 当前第 18 轮状态为：测试版发布后线上回归、隐私检查和回滚预案记录已完成；建议继续小范围测试版公开试用，不包装为稳定正式版。
+
+## 记录时间
+
+- 日期：2026-06-08
+- 阶段：MVP 编码阶段第 18 轮
+
 # 项目状态记录 - MVP 编码阶段第 17 轮
 
 ## 第 17 轮当前状态
