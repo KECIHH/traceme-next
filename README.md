@@ -11,7 +11,7 @@
 - 旅行计划生成：统一通过服务端 `POST /api/travel-plans/generate`。
 - Provider 切换：支持 `AI_PROVIDER=mock` 和 `AI_PROVIDER=openai-compatible`。
 - 结构化结果展示：包含总览、每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、用户自行确认事项和免责声明。
-- Markdown 输出：支持复制全文和下载 Markdown。
+- 导出体验：支持复制全文、下载 Markdown，以及使用浏览器打印/保存 PDF。
 - 契约校验：请求和结果使用 Zod schema 校验，结果天数和用户确认事项有基础约束。
 - 错误提示：前端展示用户友好的错误文案，不展示底层 provider 响应或敏感配置。
 
@@ -172,7 +172,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 - 地图。
 - 天气。
 - 联网搜索。
-- PDF 导出。
+- 服务端 PDF 导出或精确排版 PDF。
 - 版本历史。
 - 保存历史或保存到笔记。
 - 方案对比。

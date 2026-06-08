@@ -1,3 +1,84 @@
+# 项目状态记录 - MVP 编码阶段第 19 轮
+
+## 第 19 轮当前状态
+
+- 本轮定位为导出体验增强：在现有“复制全文”和“下载 Markdown”基础上新增“打印 / 保存 PDF”入口。
+- 本轮实现仅使用浏览器原生打印能力，点击后调用 `window.print()`；“保存 PDF”依赖用户浏览器打印对话框能力。
+- 本轮不包装为精确排版 PDF，不实现服务端 PDF 生成，不新增后端 route，不接数据库。
+- 本轮继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未修改请求/响应 schema、`TripPlan` 类型、provider 选择逻辑或 mock provider。
+  - 未新增数据库、登录、地图、天气、搜索、版本历史、方案对比或行程优化。
+  - 未暴露真实服务器 IP、API Key、Bearer、Authorization、完整 provider URL 或原始 provider 响应。
+  - 未提交 `.env`、`.env.local` 或任何真实密钥。
+  - 未执行 git commit。
+
+## 第 19 轮实现结果
+
+- `src/components/trip/result-actions.tsx`：
+  - 导出操作区新增“打印 / 保存 PDF”按钮。
+  - 点击按钮时调用浏览器 `window.print()`。
+  - 浏览器不支持打印能力时显示保守错误提示。
+  - 导出区文案更新为可复制全文、下载 Markdown，或使用浏览器打印/保存 PDF；同时强调当前内容仍是 AI 旅行计划草稿，实时或易变信息需出发前人工确认。
+  - 复制全文和下载 Markdown 仍复用原有实现，未修改 Markdown formatter。
+- `src/app/page.tsx` 与 `src/components/trip/trip-plan-result.tsx`：
+  - 为站点头部、表单、目的地推荐、生成状态区、结果预览占位、导出操作区和开发 JSON 预览补充打印隐藏标记。
+  - 为旅行计划结果主体补充打印根标记，便于打印时聚焦结果内容。
+- `src/app/globals.css`：
+  - 新增 `@media print` 样式。
+  - 打印时隐藏表单、推荐区、按钮、操作反馈、手动复制区域和开发调试内容。
+  - 打印时结果区全宽展示，背景改为白色，移除阴影。
+  - 对结果区的 section、article 和列表项设置分页友好样式，尽量避免卡片明显截断。
+  - 使用 `@page` 设置基础页边距，不承诺精确排版 PDF。
+
+## 第 19 轮验证结果
+
+- 自动化命令已全部通过：
+  - `npm test`：已通过，7 个测试全部 pass。
+  - `npm run lint`：已通过。
+  - `npm run build`：已通过。
+  - `npx tsc --noEmit`：已通过。
+- mock 模式复验已通过：
+  - 使用本地临时生产服务和 `AI_PROVIDER=mock` 验证首页与 API smoke。
+  - 合法 API 返回 HTTP 200、`ok=true`、`source.provider=mock`、`source.kind=mock`，天数一致，五类用户自行确认事项齐全；响应未命中敏感泄露模式。
+  - 浏览器页面流可提交默认合法表单，成功后展示完整结果和 `mock 草稿`。
+  - “复制全文”“下载 Markdown”“打印 / 保存 PDF”三个入口均可见。
+  - 点击“复制全文”后出现复制成功或手动复制兜底反馈。
+  - 点击“下载 Markdown”后出现下载反馈，原有下载能力未受影响。
+  - 点击“打印 / 保存 PDF”后确认调用 `window.print()`。
+  - 在 print media 下确认表单、目的地推荐、按钮和开发 JSON 预览被隐藏；完整结果、基本信息、每日行程、用户自行确认事项和免责声明保持可见。
+- 真实 AI 模式复验已通过：
+  - 使用本地已有服务端环境变量启动临时生产服务，未记录真实密钥、完整 provider URL 或原始 provider 响应。
+  - 合法 API 返回 HTTP 200、`ok=true`、`source.provider=openai-compatible`、`source.kind=ai`，天数一致，五类用户自行确认事项齐全；响应未命中敏感泄露模式。
+  - 浏览器页面流可提交默认合法表单，成功后展示真实 `AI 草稿` 和 `OpenAI-compatible` 来源标签。
+  - “复制全文”“下载 Markdown”“打印 / 保存 PDF”三个入口均可见。
+  - 复制、下载反馈均可见，原有复制与 Markdown 下载能力未受影响。
+  - 点击“打印 / 保存 PDF”后确认调用 `window.print()`。
+  - 在 print media 下确认表单、目的地推荐、按钮和开发 JSON 预览被隐藏；完整结果、基本信息、每日行程、用户自行确认事项和免责声明保持可见。
+  - 页面与 API 摘要复验未发现 API Key、Bearer、Authorization、完整 provider URL 或原始 provider 响应泄露。
+- 本轮复验使用的本地临时服务端口已清理；未新增依赖，未新增测试文件，未修改 `.env.local`。
+
+## 第 19 轮审查后修复记录
+
+- 审查结论为通过，无 P0/P1/P2 功能问题。
+- 本次修复仅处理审查提出的非阻塞文档口径建议：
+  - 将 README、发布检查清单和规划文档中的旧“PDF 导出未实现”口径更新为当前真实状态。
+  - 当前支持浏览器打印/保存 PDF。
+  - 当前仍不支持服务端 PDF 导出或精确排版 PDF。
+- 本次修复未修改功能代码、API route、schema、provider、mock provider 或 Markdown formatter。
+- 本次修复未新增数据库、登录、地图、天气、搜索、版本历史、方案对比或行程优化。
+- 本次修复未写入真实服务器 IP、API Key、Bearer、Authorization、完整 provider URL 或原始 provider 响应。
+- 审查后修复验证命令已全部通过：
+  - `npm test`：已通过，7 个测试全部 pass。
+  - `npm run lint`：已通过。
+  - `npm run build`：已通过。
+  - `npx tsc --noEmit`：已通过。
+
+## 记录时间
+
+- 日期：2026-06-08
+- 阶段：MVP 编码阶段第 19 轮
+
 # 项目状态记录 - MVP 编码阶段第 18 轮
 
 ## 第 18 轮当前状态

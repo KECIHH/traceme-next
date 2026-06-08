@@ -18,7 +18,7 @@ TripGenerationRequest
   -> TripPlanSchema
   -> TripGenerationResponse
   -> TripPlanView
-  -> Copy / Markdown Download
+  -> Copy / Markdown Download / Browser Print
 ```
 
 ## 非 MVP 范围
@@ -26,7 +26,7 @@ TripGenerationRequest
 以下功能不进入 MVP 阶段验收：
 
 - 登录、数据库、历史记录、版本回滚。
-- PDF 导出。
+- 服务端 PDF 导出或精确排版 PDF；MVP 仅支持浏览器打印/保存 PDF。
 - 真实酒店价格、真实门票价格、票务预订。
 - 复杂地图展示、实时路线规划。
 - 实时天气。
@@ -165,11 +165,10 @@ TripGenerationRequest
 - AI 评分。
 - 地图和路线展示。
 - 天气提醒。
-- PDF 导出。
+- 更完整的导出能力，例如服务端 PDF 导出或精确排版 PDF。
 
 验收标准：
 
 - 每个扩展都有独立需求说明和技术评估。
 - 不破坏 `POST /api/travel-plans/generate` 的 MVP 契约。
 - 涉及第三方 API 的扩展必须先完成官方文档调研。
-

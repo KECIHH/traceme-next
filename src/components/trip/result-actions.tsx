@@ -149,16 +149,37 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
     }
   }
 
+  function handlePrint() {
+    if (typeof window.print !== "function") {
+      showFeedback({
+        type: "error",
+        message: "当前浏览器不支持打印功能，请尝试使用浏览器菜单打印。",
+      });
+      return;
+    }
+
+    setManualCopyText("");
+    showFeedback({
+      type: "success",
+      message: "即将打开浏览器打印窗口，可在打印对话框中选择保存为 PDF。",
+    });
+    window.print();
+  }
+
   return (
-    <div className="min-w-0 rounded-md border border-emerald-100 bg-emerald-50 p-4">
+    <div
+      className="min-w-0 rounded-md border border-emerald-100 bg-emerald-50 p-4"
+      data-print-hidden="true"
+    >
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-emerald-950">导出计划</p>
           <p className="mt-1 break-words text-sm leading-6 text-emerald-800">
-            复制或下载当前旅行计划，内容为 Markdown 参考草稿。
+            可复制全文、下载 Markdown，或使用浏览器打印/保存 PDF。当前内容仍是 AI
+            旅行计划草稿，实时或易变信息请在出发前人工确认。
           </p>
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row" data-print-hidden="true">
           <button
             type="button"
             onClick={handleCopy}
@@ -172,6 +193,13 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
             className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
           >
             下载 Markdown
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            打印 / 保存 PDF
           </button>
         </div>
       </div>

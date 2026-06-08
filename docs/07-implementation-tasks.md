@@ -4,7 +4,7 @@
 
 - 当前仓库只有文档，后续编码 Agent 需要从项目初始化开始。
 - 编码顺序必须先 mock 数据打通 UI 和 schema，再接真实 AI API。
-- 不把登录、数据库、历史记录、PDF、地图、天气、搜索作为 MVP 任务。
+- 不把登录、数据库、历史记录、服务端 PDF、精确排版 PDF、地图、天气、搜索作为 MVP 任务。
 - 所有任务必须保持 `POST /api/travel-plans/generate`、`TripGenerationRequest`、`TripGenerationResponse`、`TripPlan` 命名一致。
 
 ## MVP 范围
@@ -15,14 +15,14 @@
 - 后端生成或 mock 返回 `TripPlan`。
 - 后端解析和校验 AI JSON。
 - 前端展示结果。
-- 用户重新生成、复制全文、下载 Markdown。
+- 用户重新生成、复制全文、下载 Markdown，并可使用浏览器打印/保存 PDF。
 
 ## 非 MVP 范围
 
 编码 Agent 不要在 MVP 任务中实现：
 
 - 用户登录、数据库、历史记录。
-- PDF 导出。
+- 服务端 PDF 导出或精确排版 PDF；MVP 仅支持浏览器打印/保存 PDF。
 - 真实票务、酒店、天气、地图、搜索 API。
 - 复杂缓存、队列、后台任务。
 - 多 AI Provider 设置页面。
@@ -365,4 +365,3 @@ export interface GenerateTripPlanInput {
 6. 实现 `TripForm`、页面状态和随机目的地推荐。
 7. 实现 `TripPlanView`、`DayPlanCard`、`VerifyBadge`。
 8. 实现 `tripToMarkdown`、复制全文和下载 Markdown。
-

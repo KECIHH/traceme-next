@@ -313,7 +313,7 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
   const sourceKindLabel = tripPlan.source.kind === "mock" ? "mock 草稿" : "AI 草稿";
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6" data-print-root="true">
       <SectionCard
         title={title}
         eyebrow="完整结果"
@@ -559,7 +559,10 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
         <p className="break-words text-sm leading-6 text-zinc-700">{tripPlan.disclaimer}</p>
       </SectionCard>
 
-      <details className="min-w-0 rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
+      <details
+        className="min-w-0 rounded-md border border-zinc-200 bg-white p-4 shadow-sm"
+        data-print-hidden="true"
+      >
         <summary className="cursor-pointer text-sm font-medium text-zinc-800">
           开发用 JSON 预览
         </summary>

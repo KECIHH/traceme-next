@@ -59,8 +59,11 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
-        <header className="max-w-3xl">
+      <div
+        className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10"
+        data-print-shell="true"
+      >
+        <header className="max-w-3xl" data-print-hidden="true">
           <p className="text-sm font-semibold text-emerald-700">TraceMe Next</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
             迹遇 Next
@@ -71,8 +74,11 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] lg:items-start">
-          <div className="space-y-6">
+        <div
+          className="grid gap-6 lg:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] lg:items-start"
+          data-print-layout="true"
+        >
+          <div className="space-y-6" data-print-hidden="true">
             <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
               <TripPlannerForm
                 destination={destination}
@@ -91,7 +97,10 @@ export default function Home() {
           </div>
 
           <aside className="min-w-0 space-y-6">
-            <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
+            <section
+              className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm"
+              data-print-hidden="true"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium text-zinc-500">生成状态</p>
@@ -153,11 +162,14 @@ export default function Home() {
             {tripPlan && status === "success" ? (
               <TripPlanResult tripPlan={tripPlan} />
             ) : (
-              <section className="rounded-md border border-dashed border-zinc-300 bg-white/70 p-5">
+              <section
+                className="rounded-md border border-dashed border-zinc-300 bg-white/70 p-5"
+                data-print-hidden="true"
+              >
                 <h2 className="text-lg font-semibold text-zinc-950">结果预览</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
                   成功生成后，这里会优先展示完整 TripPlanResult，覆盖每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、自行确认事项和免责声明。
-                  生成计划后，你可以查看完整行程，并复制全文或下载 Markdown。
+                  生成计划后，你可以查看完整行程，并复制全文、下载 Markdown 或使用浏览器打印/保存 PDF。
                 </p>
               </section>
             )}

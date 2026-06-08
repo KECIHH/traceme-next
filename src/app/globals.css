@@ -24,3 +24,88 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #171717;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body {
+    color: #171717 !important;
+    print-color-adjust: exact;
+  }
+
+  main {
+    min-height: auto !important;
+    background: #ffffff !important;
+  }
+
+  button,
+  [data-print-hidden="true"] {
+    display: none !important;
+  }
+
+  [data-print-shell="true"] {
+    max-width: none !important;
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+
+  [data-print-layout="true"] {
+    display: block !important;
+  }
+
+  [data-print-layout="true"] > aside,
+  [data-print-root="true"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  [data-print-root="true"] {
+    color: #171717 !important;
+  }
+
+  [data-print-root="true"] section,
+  [data-print-root="true"] article,
+  [data-print-root="true"] li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  [data-print-root="true"] section {
+    border-color: #d4d4d8 !important;
+    background: #ffffff !important;
+    padding: 14px !important;
+  }
+
+  [data-print-root="true"] article,
+  [data-print-root="true"] div,
+  [data-print-root="true"] li,
+  [data-print-root="true"] span,
+  [data-print-root="true"] p {
+    print-color-adjust: exact;
+  }
+
+  [data-print-root="true"] pre,
+  [data-print-root="true"] textarea {
+    white-space: pre-wrap !important;
+  }
+}
