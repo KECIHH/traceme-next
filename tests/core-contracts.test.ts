@@ -1,15 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { POST as compareTravelPlansPost } from "@/app/api/travel-plans/compare/route";
 import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { formatTripPlanMarkdown } from "@/lib/markdown/format-trip-plan-markdown";
-import { generateMockTripPlanJson } from "@/lib/ai/mock-provider";
+import {
+  generateMockTravelPlanComparisonJson,
+  generateMockTripPlanJson,
+} from "@/lib/ai/mock-provider";
 import {
   GenerateTripPlanRequestSchema,
+  TravelPlanComparisonSchema,
   TripPlanSchema,
   type GenerateTripPlanRequest,
   type TripPlan,
 } from "@/lib/schemas/trip";
+import { generateTravelPlanComparison } from "@/lib/services/generate-travel-plan-comparison";
 import { getBudgetSummary } from "@/lib/utils/budget";
 
 const validRequest: GenerateTripPlanRequest = {
@@ -146,4 +152,72 @@ test("getBudgetSummary keeps total and per-person budget semantics", () => {
       perPersonAmount: 3000,
     },
   );
+});
+
+test("TravelPlanComparisonSchema accepts valid mock comparison output", async () => {
+  const plan = await buildValidTripPlan();
+  const raw = await generateMockTravelPlanComparisonJson(plan);
+  const comparison = TravelPlanComparisonSchema.parse(JSON.parse(raw));
+
+  assert.equal(comparison.basePlanId, plan.id);
+  assert.equal(comparison.source.provider, "mock");
+  assert.equal(comparison.source.kind, "mock");
+  assert.equal(comparison.variants.length, 3);
+
+  for (const variant of comparison.variants) {
+    assert.ok(variant.dailySummary.length >= plan.dailyItinerary.length);
+    assert.ok(variant.dailySummary.every((summary) => summary.summary.trim().length > 0));
+    assert.ok(variant.scores.budgetFriendliness >= 1 && variant.scores.budgetFriendliness <= 5);
+    assert.ok(variant.scores.paceRelaxation >= 1 && variant.scores.paceRelaxation <= 5);
+    assert.ok(variant.scores.attractionDensity >= 1 && variant.scores.attractionDensity <= 5);
+  }
+});
+
+test("generateTravelPlanComparison returns stable mock variants and optimization", async () => {
+  const previousProvider = process.env.AI_PROVIDER;
+  const plan = await buildValidTripPlan();
+
+  process.env.AI_PROVIDER = "mock";
+
+  try {
+    const comparison = await generateTravelPlanComparison(plan);
+
+    assert.equal(comparison.generatedAt, "1970-01-01T00:00:00.000Z");
+    assert.deepEqual(
+      comparison.variants.map((variant) => variant.name),
+      ["轻松舒适", "预算友好", "景点丰富"],
+    );
+    assert.ok(comparison.optimization.paceTightness.length > 0);
+    assert.ok(comparison.optimization.manualConfirmations.length >= 1);
+  } finally {
+    if (previousProvider === undefined) {
+      delete process.env.AI_PROVIDER;
+    } else {
+      process.env.AI_PROVIDER = previousProvider;
+    }
+  }
+});
+
+test("compare API rejects invalid request bodies with BAD_REQUEST", async () => {
+  const response = await compareTravelPlansPost(
+    new Request("http://localhost/api/travel-plans/compare", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tripPlan: { id: "invalid" } }),
+    }),
+  );
+  const json = await response.json() as {
+    ok: false;
+    error: {
+      code: string;
+      requestId: string;
+    };
+  };
+
+  assert.equal(response.status, 400);
+  assert.equal(json.ok, false);
+  assert.equal(json.error.code, "BAD_REQUEST");
+  assert.ok(json.error.requestId);
 });

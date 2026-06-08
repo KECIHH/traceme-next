@@ -5,10 +5,13 @@ import { useState } from "react";
 import { DestinationSuggestions } from "@/components/trip/destination-suggestions";
 import { TripPlanResult } from "@/components/trip/trip-plan-result";
 import { TripPlannerForm } from "@/components/trip/trip-planner-form";
-import type { GenerateTripPlanRequest, TripPlan } from "@/lib/schemas/trip";
+import { TravelPlanComparisonPanel } from "@/components/trip/travel-plan-comparison-panel";
+import type { GenerateTripPlanRequest, TravelPlanComparison, TripPlan } from "@/lib/schemas/trip";
+import { generateTravelPlanComparisonFromApi } from "@/lib/services/travel-plan-comparison-client";
 import { generateTripPlanFromApi } from "@/lib/services/travel-plan-client";
 
 type GenerateStatus = "idle" | "loading" | "success" | "error";
+type ComparisonStatus = "idle" | "loading" | "success" | "error";
 
 function getStatusTitle(status: GenerateStatus) {
   switch (status) {
@@ -27,14 +30,21 @@ export default function Home() {
   const [destination, setDestination] = useState("成都");
   const [status, setStatus] = useState<GenerateStatus>("idle");
   const [tripPlan, setTripPlan] = useState<TripPlan | null>(null);
+  const [comparison, setComparison] = useState<TravelPlanComparison | null>(null);
+  const [comparisonStatus, setComparisonStatus] = useState<ComparisonStatus>("idle");
+  const [comparisonErrorMessage, setComparisonErrorMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [latestRequest, setLatestRequest] = useState<GenerateTripPlanRequest | null>(null);
 
   const isLoading = status === "loading";
+  const isComparisonLoading = comparisonStatus === "loading";
 
   async function submitRequest(request: GenerateTripPlanRequest) {
     setStatus("loading");
     setErrorMessage("");
+    setComparison(null);
+    setComparisonStatus("idle");
+    setComparisonErrorMessage("");
     setLatestRequest(request);
 
     const result = await generateTripPlanFromApi(request);
@@ -47,6 +57,26 @@ export default function Home() {
 
     setStatus("error");
     setErrorMessage(result.errorMessage);
+  }
+
+  async function generateComparison() {
+    if (!tripPlan || isLoading || isComparisonLoading) {
+      return;
+    }
+
+    setComparisonStatus("loading");
+    setComparisonErrorMessage("");
+
+    const result = await generateTravelPlanComparisonFromApi(tripPlan);
+
+    if (result.ok) {
+      setComparison(result.data);
+      setComparisonStatus("success");
+      return;
+    }
+
+    setComparisonStatus("error");
+    setComparisonErrorMessage(result.errorMessage);
   }
 
   async function regenerateLatestRequest() {
@@ -160,7 +190,16 @@ export default function Home() {
             </section>
 
             {tripPlan && status === "success" ? (
-              <TripPlanResult tripPlan={tripPlan} />
+              <>
+                <TravelPlanComparisonPanel
+                  comparison={comparison}
+                  status={comparisonStatus}
+                  errorMessage={comparisonErrorMessage}
+                  disabled={isLoading}
+                  onGenerate={generateComparison}
+                />
+                <TripPlanResult tripPlan={tripPlan} />
+              </>
             ) : (
               <section
                 className="rounded-md border border-dashed border-zinc-300 bg-white/70 p-5"

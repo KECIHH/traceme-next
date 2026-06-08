@@ -20,6 +20,16 @@ npx tsc --noEmit
 - `npm run build` 不依赖浏览器端密钥。
 - `npx tsc --noEmit` 无类型错误。
 
+## Round 22 Database Configuration Note
+
+The app now includes a minimal server-only PostgreSQL skeleton for future saved history. Runtime configuration may include:
+
+```env
+DATABASE_URL=
+```
+
+Keep `DATABASE_URL` empty unless a real PostgreSQL database has been provisioned outside this round. Do not commit `.env`, `.env.local`, database passwords, server IPs, API keys, bearer tokens, or authorization headers. This round does not enable login, saved history UI, public save/list/detail APIs, or user-usable version history.
+
 ## Mock 模式验收
 
 本地或临时服务使用：

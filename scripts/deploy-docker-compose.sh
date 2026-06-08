@@ -57,6 +57,7 @@ AI_MODEL=
 AI_CHAT_COMPLETIONS_URL=
 AI_REQUEST_TIMEOUT_MS=
 APP_PORT=3000
+DATABASE_URL=
 ENVEOF
   echo "Created .env with mock defaults. Edit it on the server for openai-compatible mode." >&2
 fi

@@ -365,6 +365,50 @@ export const TripPlanSchema = z
     }
   });
 
+const ComparisonScoreSchema = z.number().int().min(1).max(5);
+
+const TravelPlanVariantDailySummarySchema = z.object({
+  day: z.number().int().min(1),
+  date: IsoDateSchema.optional(),
+  title: NonEmptyStringSchema.max(100),
+  summary: NonEmptyStringSchema.max(500),
+});
+
+const TravelPlanVariantSchema = z.object({
+  name: NonEmptyStringSchema.max(80),
+  style: NonEmptyStringSchema.max(300),
+  suitableFor: NonEmptyStringSchema.max(300),
+  advantages: z.array(NonEmptyStringSchema.max(200)).min(1).max(5),
+  tradeOffs: z.array(NonEmptyStringSchema.max(200)).min(1).max(5),
+  scores: z.object({
+    budgetFriendliness: ComparisonScoreSchema,
+    paceRelaxation: ComparisonScoreSchema,
+    attractionDensity: ComparisonScoreSchema,
+  }),
+  dailySummary: z.array(TravelPlanVariantDailySummarySchema).min(1),
+});
+
+const TravelPlanOptimizationSchema = z.object({
+  paceTightness: NonEmptyStringSchema.max(500),
+  budgetRisks: z.array(NonEmptyStringSchema.max(300)).min(1).max(6),
+  scheduleConflicts: z.array(NonEmptyStringSchema.max(300)).min(1).max(6),
+  replacementIdeas: z.array(NonEmptyStringSchema.max(300)).min(1).max(6),
+  manualConfirmations: z.array(NonEmptyStringSchema.max(300)).min(1).max(8),
+});
+
+export const TravelPlanComparisonSchema = z.object({
+  source: TripPlanSourceSchema,
+  generatedAt: z.iso.datetime(),
+  basePlanId: NonEmptyStringSchema.max(80),
+  variants: z.array(TravelPlanVariantSchema).min(2).max(3),
+  optimization: TravelPlanOptimizationSchema,
+  disclaimer: NonEmptyStringSchema.max(1000),
+});
+
+export const TravelPlanComparisonRequestSchema = z.object({
+  tripPlan: TripPlanSchema,
+});
+
 export type GenerationMode = z.infer<typeof GenerationModeSchema>;
 export type Pace = z.infer<typeof PaceSchema>;
 export type BudgetScope = z.infer<typeof BudgetScopeSchema>;
@@ -383,3 +427,8 @@ export type BudgetBreakdownItem = z.infer<typeof BudgetBreakdownItemSchema>;
 export type PackingChecklistItem = z.infer<typeof PackingChecklistItemSchema>;
 export type RiskReminder = z.infer<typeof RiskReminderSchema>;
 export type UserVerifyItem = z.infer<typeof UserVerifyItemSchema>;
+export type TravelPlanVariantDailySummary = z.infer<typeof TravelPlanVariantDailySummarySchema>;
+export type TravelPlanVariant = z.infer<typeof TravelPlanVariantSchema>;
+export type TravelPlanOptimization = z.infer<typeof TravelPlanOptimizationSchema>;
+export type TravelPlanComparison = z.infer<typeof TravelPlanComparisonSchema>;
+export type TravelPlanComparisonRequest = z.infer<typeof TravelPlanComparisonRequestSchema>;

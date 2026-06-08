@@ -1,4 +1,8 @@
-import type { AIProvider, GenerateTripPlanRawTextInput } from "@/lib/ai/ai-provider";
+import type {
+  AIProvider,
+  GenerateTravelPlanComparisonRawTextInput,
+  GenerateTripPlanRawTextInput,
+} from "@/lib/ai/ai-provider";
 import type {
   AccommodationSuggestion,
   Attraction,
@@ -9,6 +13,8 @@ import type {
   PackingChecklistItem,
   RiskReminder,
   Transportation,
+  TravelPlanComparison,
+  TravelPlanVariant,
   TripPlan,
   UserVerifyItem,
 } from "@/lib/schemas/trip";
@@ -411,9 +417,134 @@ export async function generateMockTripPlanJson(request: GenerateTripPlanRequest)
   return JSON.stringify(plan);
 }
 
+function buildVariantDailySummary(
+  tripPlan: TripPlan,
+  variantName: string,
+  focus: string,
+): TravelPlanVariant["dailySummary"] {
+  return tripPlan.dailyItinerary.map((day) => ({
+    day: day.day,
+    date: day.date,
+    title: `${variantName} - Day ${day.day}`,
+    summary: `${focus}${day.title ? `: ${day.title}` : ""}. ${day.summary}`,
+  }));
+}
+
+export async function generateMockTravelPlanComparisonJson(
+  tripPlan: TripPlan,
+): Promise<string> {
+  const { destination, budget, pace } = tripPlan.input;
+  const baseConfirmations = [
+    "出发前人工确认交通班次、票价、退改规则和实际耗时。",
+    "出发前人工确认住宿价格、房态、取消政策和入住规则。",
+    "每日出门前人工确认天气、开放时间、预约规则和现场排队情况。",
+  ];
+  const variants: TravelPlanComparison["variants"] = [
+    {
+      name: "轻松舒适",
+      style: `以${destination}的低压力体验为主，减少连续赶场，保留午后休息和临时调整空间。`,
+      suitableFor: "适合亲子、长辈同行、首次到访或希望慢慢体验的人群。",
+      advantages: [
+        "每天重点更集中，体力消耗较低。",
+        "更容易根据天气、排队和同伴状态调整。",
+        "晚间安排更轻，适合保留休息时间。",
+      ],
+      tradeOffs: [
+        "可覆盖的景点数量会少一些。",
+        "部分小众体验需要舍弃或作为备选。",
+      ],
+      scores: {
+        budgetFriendliness: budget.scope === "perPerson" ? 3 : 4,
+        paceRelaxation: 5,
+        attractionDensity: 2,
+      },
+      dailySummary: buildVariantDailySummary(tripPlan, "轻松舒适", "降低每日密度，优先保留核心体验"),
+    },
+    {
+      name: "预算友好",
+      style: `围绕${destination}的公共交通、集中住宿区域和可替换餐饮安排控制预算风险。`,
+      suitableFor: "适合预算敏感、愿意用时间换成本、希望保留机动预算的旅行者。",
+      advantages: [
+        "优先控制交通、住宿和餐饮三类大头支出。",
+        "适合把高价体验改为半日或备选项目。",
+        "更容易预留临时支出缓冲。",
+      ],
+      tradeOffs: [
+        "可能增加换乘或步行时间。",
+        "住宿位置和餐饮体验可能需要做取舍。",
+      ],
+      scores: {
+        budgetFriendliness: 5,
+        paceRelaxation: pace === "intensive" ? 2 : 3,
+        attractionDensity: 3,
+      },
+      dailySummary: buildVariantDailySummary(tripPlan, "预算友好", "优先选择成本更可控的同类安排"),
+    },
+    {
+      name: "景点丰富",
+      style: `提升${destination}核心景点和街区体验的覆盖率，把自由活动压缩为短时缓冲。`,
+      suitableFor: "适合体力较好、希望多看多走、对行程密度接受度高的旅行者。",
+      advantages: [
+        "同一趟旅行可覆盖更多代表性体验。",
+        "更适合首次打卡多个核心目的地。",
+        "每日主题更明确，信息密度更高。",
+      ],
+      tradeOffs: [
+        "节奏更紧，临时变化会更容易影响后续安排。",
+        "预算和体力消耗风险都会上升。",
+      ],
+      scores: {
+        budgetFriendliness: 2,
+        paceRelaxation: 2,
+        attractionDensity: 5,
+      },
+      dailySummary: buildVariantDailySummary(tripPlan, "景点丰富", "增加同日核心点位覆盖，但保留人工确认节点"),
+    },
+  ];
+  const comparison: TravelPlanComparison = {
+    source: {
+      provider: "mock",
+      kind: "mock",
+    },
+    generatedAt: "1970-01-01T00:00:00.000Z",
+    basePlanId: tripPlan.id,
+    variants,
+    optimization: {
+      paceTightness:
+        pace === "intensive"
+          ? "当前节奏偏紧，建议至少为每日午后或晚间保留一个可取消的缓冲段。"
+          : "当前节奏整体可控，建议继续保留到达日、返程日和高强度体验后的休息空间。",
+      budgetRisks: [
+        "预算拆分只适合作为规划参考，交通、住宿、餐饮和门票价格都需要出发前人工确认。",
+        budget.scope === "perPerson"
+          ? "用户填写的是人均预算，实际总预算需要按同行人数再次核对。"
+          : "用户填写的是总预算，若同行人数或住宿房型变化，需要重新估算人均成本。",
+      ],
+      scheduleConflicts: [
+        "同一天若同时安排热门景点、长距离移动和正式晚餐，容易受到排队、预约和交通耗时影响。",
+        "到达日和返程日不宜安排不可取消的高强度项目。",
+      ],
+      replacementIdeas: [
+        "把远距离景点替换为住宿周边街区、展馆或短时体验，可降低交通和体力成本。",
+        "把高价餐饮或体验项目设为备选，将预算留给更确定的交通和住宿。",
+      ],
+      manualConfirmations: baseConfirmations,
+    },
+    disclaimer:
+      "对比方案和优化建议仅基于当前旅行计划草稿生成，不包含实时、准确或官方数据；票务、住宿、交通、天气、开放时间和预约状态均需用户出发前自行确认。",
+  };
+
+  return JSON.stringify(comparison);
+}
+
 export const mockAIProvider: AIProvider = {
   name: "mock",
   generateTripPlanRawText({ request }: GenerateTripPlanRawTextInput) {
     return generateMockTripPlanJson(request);
+  },
+  generateTravelPlanComparisonRawText({
+    tripPlan,
+  }: GenerateTravelPlanComparisonRawTextInput) {
+    return generateMockTravelPlanComparisonJson(tripPlan);
   },
 };

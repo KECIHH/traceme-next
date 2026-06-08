@@ -138,6 +138,16 @@ AI_REQUEST_TIMEOUT_MS=
 
 本项目的 `openai-compatible` adapter 可用于 OpenAI Responses endpoint 或兼容 Chat Completions 的服务端 endpoint。[真实 AI Provider] 等兼容 OpenAI 调用形态的服务，需要将完整服务端 endpoint 填入 `AI_CHAT_COMPLETIONS_URL`。
 
+## Database Skeleton
+
+Round 22 adds a server-only PostgreSQL skeleton for future account history. Configure it only through the server environment variable:
+
+```env
+DATABASE_URL=
+```
+
+Leave `DATABASE_URL` empty when no PostgreSQL database is available. The current app does not expose login, saved history UI, public save/list/detail APIs, or user-usable version history yet. Do not commit `.env`, `.env.local`, real database passwords, server addresses, API keys, bearer tokens, or authorization headers.
+
 ## Smoke Test
 
 部署后可运行：

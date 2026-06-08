@@ -2,7 +2,9 @@ import {
   AIEmptyResponseError,
   AIProviderError,
   type AIProvider,
+  type GenerateTravelPlanComparisonRawTextInput,
   type GenerateTripPlanRawTextInput,
+  type TripPlanPrompt,
 } from "@/lib/ai/ai-provider";
 
 type OpenAICompatibleProviderConfig = {
@@ -137,215 +139,227 @@ function isTransientHttpStatus(status: number) {
 export function createOpenAICompatibleProvider(
   config: OpenAICompatibleProviderConfig,
 ): AIProvider {
-  return {
-    name: "openai-compatible",
-    async generateTripPlanRawText({ prompt }: GenerateTripPlanRawTextInput) {
-      const chatCompletionsUrl = normalizeChatCompletionsUrl(config.chatCompletionsUrl);
-      const responsesUrl = normalizeResponsesUrl(config.chatCompletionsUrl);
+  const chatCompletionsUrl = normalizeChatCompletionsUrl(config.chatCompletionsUrl);
+  const responsesUrl = normalizeResponsesUrl(config.chatCompletionsUrl);
 
-      async function readResponsePayload(
-        response: Response,
-        protocol: string,
-      ): Promise<ProviderResponsePayload> {
-        const responseText = await response.text();
+  async function readResponsePayload(
+    response: Response,
+    protocol: string,
+  ): Promise<ProviderResponsePayload> {
+    const responseText = await response.text();
 
-        try {
-          return {
-            kind: "json",
-            value: JSON.parse(responseText) as unknown,
-          };
-        } catch {
-          logProviderDiagnostic({
-            event: "invalid_json_response",
-            model: config.model,
-            protocol,
-            urlHost: getSafeUrlHost(response.url),
-            status: response.status,
-          });
+    try {
+      return {
+        kind: "json",
+        value: JSON.parse(responseText) as unknown,
+      };
+    } catch {
+      logProviderDiagnostic({
+        event: "invalid_json_response",
+        model: config.model,
+        protocol,
+        urlHost: getSafeUrlHost(response.url),
+        status: response.status,
+      });
 
-          return {
-            kind: "rawText",
-            value: responseText.trim(),
-          };
-        }
-      }
+      return {
+        kind: "rawText",
+        value: responseText.trim(),
+      };
+    }
+  }
 
-      async function generateWithChatCompletions(signal: AbortSignal) {
-        const response = await fetch(chatCompletionsUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: config.model,
-            max_tokens: MAX_COMPLETION_TOKENS,
-            messages: [
-              {
-                role: "system",
-                content: prompt.systemPrompt,
-              },
-              {
-                role: "user",
-                content: prompt.userPrompt,
-              },
-            ],
-          }),
-          signal,
+  async function generateRawTextWithPrompt(prompt: TripPlanPrompt) {
+    async function generateWithChatCompletions(signal: AbortSignal) {
+      const response = await fetch(chatCompletionsUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: config.model,
+          max_tokens: MAX_COMPLETION_TOKENS,
+          messages: [
+            {
+              role: "system",
+              content: prompt.systemPrompt,
+            },
+            {
+              role: "user",
+              content: prompt.userPrompt,
+            },
+          ],
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        logProviderDiagnostic({
+          event: "non_2xx_response",
+          model: config.model,
+          protocol: "chat_completions",
+          urlHost: getSafeUrlHost(chatCompletionsUrl),
+          status: response.status,
         });
 
-        if (!response.ok) {
-          logProviderDiagnostic({
-            event: "non_2xx_response",
-            model: config.model,
-            protocol: "chat_completions",
-            urlHost: getSafeUrlHost(chatCompletionsUrl),
-            status: response.status,
-          });
-
-          if (response.status === 400 || response.status === 404) {
-            return {
-              shouldFallbackToResponses: true,
-              rawText: "",
-            };
-          }
-
-          if (isTransientHttpStatus(response.status)) {
-            throw new TransientAIProviderError();
-          }
-
-          throw new AIProviderError("AI provider request failed.");
+        if (response.status === 400 || response.status === 404) {
+          return {
+            shouldFallbackToResponses: true,
+            rawText: "",
+          };
         }
 
-        const payload = await readResponsePayload(response, "chat_completions");
-        const rawText =
-          payload.kind === "json" ? readMessageContent(payload.value) : payload.value;
-
-        if (!rawText) {
-          logProviderDiagnostic({
-            event: "empty_message_content",
-            model: config.model,
-            protocol: "chat_completions",
-            urlHost: getSafeUrlHost(chatCompletionsUrl),
-          });
-          throw new AIEmptyResponseError();
+        if (isTransientHttpStatus(response.status)) {
+          throw new TransientAIProviderError();
         }
 
-        return {
-          shouldFallbackToResponses: false,
-          rawText,
-        };
+        throw new AIProviderError("AI provider request failed.");
       }
 
-      async function generateWithResponses(signal: AbortSignal) {
-        const response = await fetch(responsesUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: config.model,
-            instructions: prompt.systemPrompt,
-            input: prompt.userPrompt,
-            max_output_tokens: MAX_OUTPUT_TOKENS,
-          }),
-          signal,
+      const payload = await readResponsePayload(response, "chat_completions");
+      const rawText =
+        payload.kind === "json" ? readMessageContent(payload.value) : payload.value;
+
+      if (!rawText) {
+        logProviderDiagnostic({
+          event: "empty_message_content",
+          model: config.model,
+          protocol: "chat_completions",
+          urlHost: getSafeUrlHost(chatCompletionsUrl),
+        });
+        throw new AIEmptyResponseError();
+      }
+
+      return {
+        shouldFallbackToResponses: false,
+        rawText,
+      };
+    }
+
+    async function generateWithResponses(signal: AbortSignal) {
+      const response = await fetch(responsesUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: config.model,
+          instructions: prompt.systemPrompt,
+          input: prompt.userPrompt,
+          max_output_tokens: MAX_OUTPUT_TOKENS,
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        logProviderDiagnostic({
+          event: "non_2xx_response",
+          model: config.model,
+          protocol: "responses",
+          urlHost: getSafeUrlHost(responsesUrl),
+          status: response.status,
         });
 
-        if (!response.ok) {
-          logProviderDiagnostic({
-            event: "non_2xx_response",
-            model: config.model,
-            protocol: "responses",
-            urlHost: getSafeUrlHost(responsesUrl),
-            status: response.status,
-          });
-
-          if (isTransientHttpStatus(response.status)) {
-            throw new TransientAIProviderError();
-          }
-
-          throw new AIProviderError("AI provider request failed.");
+        if (isTransientHttpStatus(response.status)) {
+          throw new TransientAIProviderError();
         }
 
-        const payload = await readResponsePayload(response, "responses");
-        const rawText =
-          payload.kind === "json" ? readResponsesContent(payload.value) : payload.value;
-
-        if (!rawText) {
-          logProviderDiagnostic({
-            event: "empty_message_content",
-            model: config.model,
-            protocol: "responses",
-            urlHost: getSafeUrlHost(responsesUrl),
-          });
-          throw new AIEmptyResponseError();
-        }
-
-        return rawText;
+        throw new AIProviderError("AI provider request failed.");
       }
 
-      async function generateOnce() {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+      const payload = await readResponsePayload(response, "responses");
+      const rawText =
+        payload.kind === "json" ? readResponsesContent(payload.value) : payload.value;
 
-        try {
-          if (/\/responses\/?$/i.test(new URL(config.chatCompletionsUrl).pathname)) {
-            return await generateWithResponses(controller.signal);
-          }
+      if (!rawText) {
+        logProviderDiagnostic({
+          event: "empty_message_content",
+          model: config.model,
+          protocol: "responses",
+          urlHost: getSafeUrlHost(responsesUrl),
+        });
+        throw new AIEmptyResponseError();
+      }
 
-          const chatResult = await generateWithChatCompletions(controller.signal);
+      return rawText;
+    }
 
-          if (!chatResult.shouldFallbackToResponses) {
-            return chatResult.rawText;
-          }
+    async function generateOnce() {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
 
+      try {
+        if (/\/responses\/?$/i.test(new URL(config.chatCompletionsUrl).pathname)) {
           return await generateWithResponses(controller.signal);
-        } catch (error) {
-          if (error instanceof AIEmptyResponseError || error instanceof AIProviderError) {
-            throw error;
-          }
+        }
 
+        const chatResult = await generateWithChatCompletions(controller.signal);
+
+        if (!chatResult.shouldFallbackToResponses) {
+          return chatResult.rawText;
+        }
+
+        return await generateWithResponses(controller.signal);
+      } catch (error) {
+        if (error instanceof AIEmptyResponseError || error instanceof AIProviderError) {
+          throw error;
+        }
+
+        logProviderDiagnostic({
+          event:
+            error instanceof DOMException && error.name === "AbortError"
+              ? "timeout"
+              : "request_error",
+          model: config.model,
+          protocol: "auto",
+          urlHost: getSafeUrlHost(config.chatCompletionsUrl),
+        });
+        throw new TransientAIProviderError();
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    for (let attemptIndex = 0; attemptIndex < MAX_PROVIDER_ATTEMPTS; attemptIndex += 1) {
+      try {
+        return await generateOnce();
+      } catch (error) {
+        if (
+          error instanceof TransientAIProviderError
+          && attemptIndex < MAX_PROVIDER_ATTEMPTS - 1
+        ) {
           logProviderDiagnostic({
-            event: error instanceof DOMException && error.name === "AbortError" ? "timeout" : "request_error",
+            event: "retry_transient_error",
             model: config.model,
             protocol: "auto",
             urlHost: getSafeUrlHost(config.chatCompletionsUrl),
+            attempt: attemptIndex + 1,
           });
-          throw new TransientAIProviderError();
-        } finally {
-          clearTimeout(timeout);
+          continue;
         }
-      }
 
-      for (let attemptIndex = 0; attemptIndex < MAX_PROVIDER_ATTEMPTS; attemptIndex += 1) {
-        try {
-          return await generateOnce();
-        } catch (error) {
-          if (
-            error instanceof TransientAIProviderError
-            && attemptIndex < MAX_PROVIDER_ATTEMPTS - 1
-          ) {
-            logProviderDiagnostic({
-              event: "retry_transient_error",
-              model: config.model,
-              protocol: "auto",
-              urlHost: getSafeUrlHost(config.chatCompletionsUrl),
-              attempt: attemptIndex + 1,
-            });
-            continue;
-          }
-
-          if (error instanceof TransientAIProviderError) {
-            throw new AIProviderError("AI provider request failed.");
-          }
-
-          throw error;
+        if (error instanceof TransientAIProviderError) {
+          throw new AIProviderError("AI provider request failed.");
         }
-      }
 
-      throw new AIProviderError("AI provider request failed.");
+        throw error;
+      }
+    }
+
+    throw new AIProviderError("AI provider request failed.");
+  }
+
+  return {
+    name: "openai-compatible",
+    generateTripPlanRawText({ prompt }: GenerateTripPlanRawTextInput) {
+      return generateRawTextWithPrompt(prompt);
+    },
+    generateTravelPlanComparisonRawText({
+      prompt,
+    }: GenerateTravelPlanComparisonRawTextInput) {
+      return generateRawTextWithPrompt(prompt);
     },
   };
 }

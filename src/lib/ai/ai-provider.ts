@@ -1,4 +1,4 @@
-import type { GenerateTripPlanRequest } from "@/lib/schemas/trip";
+import type { GenerateTripPlanRequest, TripPlan } from "@/lib/schemas/trip";
 
 export const AI_PROVIDER_VALUES = ["mock", "openai-compatible"] as const;
 
@@ -14,9 +14,17 @@ export type GenerateTripPlanRawTextInput = {
   prompt: TripPlanPrompt;
 };
 
+export type GenerateTravelPlanComparisonRawTextInput = {
+  tripPlan: TripPlan;
+  prompt: TripPlanPrompt;
+};
+
 export interface AIProvider {
   name: AIProviderValue;
   generateTripPlanRawText(input: GenerateTripPlanRawTextInput): Promise<string>;
+  generateTravelPlanComparisonRawText(
+    input: GenerateTravelPlanComparisonRawTextInput,
+  ): Promise<string>;
 }
 
 export class AIProviderConfigError extends Error {

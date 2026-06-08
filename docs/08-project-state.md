@@ -1,3 +1,125 @@
+# Project State - MVP Round 22
+## Round 22 Current State
+- Round 22 establishes the minimum PostgreSQL database skeleton for future saved history, version history, and login integration.
+- Added a SQL migration for `users`, `trip_plan_records`, and `trip_plan_versions`.
+- Added a server-only database connection boundary that reads `DATABASE_URL` only from the server environment.
+- Added internal repository functions for creating/listing/reading trip plan records and versions, without adding public routes or UI.
+- Added non-external-DB tests for migration presence, persistence helper validation, metadata derivation, and `TripPlan` JSON snapshot compatibility.
+- Added `DATABASE_URL=` empty examples and Docker Compose environment passthrough. No real database URL, password, server IP, API key, bearer token, or authorization header was recorded.
+
+## Round 22 Boundaries
+- Login is still not implemented.
+- Saved history UI is still not exposed.
+- User-usable version history is still not exposed.
+- No unauthenticated save/list/detail API was added.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Mock and openai-compatible providers remain in place.
+- Database provisioning, backups, volumes, production migrations, and real connection verification remain future deployment work.
+
+## Round 22 Verification
+- `npm test`: passed, 14 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output still exposes only `/`, `/_not-found`, `/api/travel-plans/compare`, and `/api/travel-plans/generate`.
+- `npx tsc --noEmit`: passed.
+- Real PostgreSQL migration/connection verification: not run in this environment because no `DATABASE_URL` was provided.
+
+## Round 22 Record Time
+- Date: 2026-06-08
+- Stage: MVP coding round 22
+
+# Project State - MVP Round 21
+## Round 21 Current State
+- Round 21 is a documentation-only design round for future login, database persistence, saved history, version history, and restore capability.
+- Added `docs/10-account-history-design.md` as a technical design draft for the later travel planning workspace phase.
+- The current beta still has no database, no user login, no saved history, no version history, no rollback, and no share links.
+- The existing `POST /api/travel-plans/generate` request/response behavior remains unchanged.
+- No ORM, Auth SDK, database dependency, migration, storage implementation, or account API route was added.
+- No maps, weather, search, server PDF generation, formal admin backend, or real-time travel data capability was added.
+- No core business code was changed as part of this round.
+- No real server address, real secret, server-only credential, or raw provider response was recorded.
+
+## Round 21 Design Summary
+- The design explains why the MVP intentionally launched without database or login: the first goal was to validate generation, schema validation, display, Markdown export, and browser print/save-PDF before adding account risk and operations load.
+- Future persistence is designed around saving a complete `TripPlan` JSON snapshot while storing list/detail metadata separately.
+- Proposed draft entities:
+  - `User`
+  - `TripPlanRecord`
+  - `TripPlanVersion`
+  - Optional future `TripPlanShare` / `ShareLink`
+- Proposed history API drafts:
+  - `POST /api/travel-plans/save`
+  - `GET /api/travel-plans`
+  - `GET /api/travel-plans/:id`
+  - `POST /api/travel-plans/:id/versions`
+  - `POST /api/travel-plans/:id/restore`
+- All future history APIs require login and must scope reads/writes by the current `userId`.
+- Restore creates a new version from an older snapshot and updates the current pointer; old versions remain immutable.
+- First-phase deletion is soft delete with `deletedAt`; normal list/detail APIs hide deleted records.
+- Share links are not recommended for the first account-history implementation.
+- Candidate routes were compared:
+  - Self-hosted PostgreSQL plus login service.
+  - Managed database and login.
+  - SQLite or local-file storage for local spikes only, not the recommended Docker beta history path.
+- Recommendation for the next round: build the minimum database skeleton before login UI so table shape, migrations, ownership boundaries, and version rules are stable first.
+
+## Round 21 Verification
+- `npm test`: passed, 10 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output still includes `/api/travel-plans/compare` and `/api/travel-plans/generate`, with no new account or history routes.
+- `npx tsc --noEmit`: passed.
+- Documentation review confirmed `docs/10-account-history-design.md` describes saved history and version history as future design only, not as current beta capability.
+
+## Round 21 Record Time
+- Date: 2026-06-08
+- Stage: MVP design round 21
+
+# Project State - MVP Round 20
+## Round 20 Current State
+- Round 20 adds lightweight plan comparison and itinerary optimization suggestions after a main trip plan has already been generated.
+- The existing `POST /api/travel-plans/generate` request/response contract remains unchanged.
+- A new independent `POST /api/travel-plans/compare` route accepts the current `TripPlan` and returns `{ ok: true, data: TravelPlanComparison }`; failures use `{ ok: false, error: { code, message, requestId } }`.
+- Boundaries kept in this round:
+  - No database, login, maps, weather, online search, ticketing, hotel integration, version history, saved history, or real data API.
+  - No real-time, accurate, official, or guaranteed claims for AI output.
+  - Comparison results are not added to the existing Markdown export.
+  - No real server IP, API Key, Bearer, Authorization, full provider URL, or raw provider response is exposed.
+  - No `.env`, `.env.local`, or real secret is committed.
+  - No git commit has been made.
+
+## Round 20 Implementation
+- Added `TravelPlanComparisonSchema` and `TravelPlanComparisonRequestSchema`.
+  - Variants are limited to 2-3 items.
+  - Each variant includes name, style, suitable audience, advantages, trade-offs, 1-5 scores for budget/pace/attraction density, and core daily summaries.
+  - Optimization includes pace tightness, budget risks, schedule conflicts, replacement ideas, and manual confirmation items.
+- Added the server comparison generation chain.
+  - Mock mode returns stable variants: `轻松舒适`, `预算友好`, and `景点丰富`.
+  - OpenAI-compatible mode uses a server prompt, `parseAiJson`, Zod validation, and one retry after JSON/schema failure.
+  - The server overwrites `source`, `generatedAt`, and `basePlanId`, and checks that each variant covers every current trip day.
+- Added current-session frontend display.
+  - The comparison entry appears only after the main plan succeeds.
+  - Regenerating the main plan clears the previous comparison.
+  - Comparison state is React page state only; no persistence or history is introduced.
+
+## Round 20 Verification
+- `npm test`: passed, 10 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/api/travel-plans/compare` and `/api/travel-plans/generate`.
+- `npx tsc --noEmit`: passed.
+- New test coverage checks comparison schema acceptance, stable mock variants, 1-5 score ranges, daily summaries, mock service generation, and compare API `BAD_REQUEST` behavior.
+
+## Round 20 Post-Review Fix
+- Review found one P2 documentation-order issue: the Round 20 status record was appended after older rounds, so the file still opened on Round 19.
+- Fixed by moving the complete Round 20 record to the top of `docs/08-project-state.md`; no product code, API, schema, provider, export, print, storage, login, map, weather, search, or history behavior was changed.
+- Post-fix verification passed:
+  - `npm test`, `npm run lint`, `npm run build`, and `npx tsc --noEmit` all passed after the documentation move.
+  - Mock API smoke passed for single-plan generation and comparison generation; the comparison returned 3 variants and optimization/manual confirmation items.
+  - Browser smoke on a local mock service passed for single-plan generation, comparison generation, Markdown copy fallback, Markdown download feedback, and print/save-PDF feedback.
+  - OpenAI-compatible live smoke was not rerun because the current shell environment did not expose `AI_API_KEY`, `AI_MODEL`, or `AI_CHAT_COMPLETIONS_URL`; the existing server-side provider path and schema validation remain unchanged, and no `.env.local` secret values were read or recorded.
+
+## Round 20 Record Time
+- Date: 2026-06-08
+- Stage: MVP coding round 20
+
 # 项目状态记录 - MVP 编码阶段第 19 轮
 
 ## 第 19 轮当前状态
