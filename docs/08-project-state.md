@@ -1,3 +1,45 @@
+# Project State - MVP Round 23
+## Round 23 Current State
+- Round 23 establishes the minimum server-side authentication/session boundary for future saved history APIs.
+- Added Auth.js with the PostgreSQL adapter and a Next.js App Router auth route at `/api/auth/[...nextauth]`.
+- Added a compatibility migration for Auth.js account/session tables while preserving the Round 22 `users` table and UUID ownership model.
+- Added server-only current-user helpers: `getCurrentUser()`, `getOptionalCurrentUser()`, and `requireCurrentUser()`.
+- Added `GET /api/account/me` as a minimal protected API that returns only a non-sensitive user summary.
+- Updated `.env.local.example`, Docker Compose passthrough, README, and the release checklist with empty auth variable names and security boundaries.
+- Added tests for the auth migration, protected API unauthorized behavior, and non-sensitive user summary mapping.
+
+## Round 23 Auth Status
+- Real login provider verification is not complete in this environment.
+- Real OAuth login is treated as configured only when `AUTH_SECRET`, `DATABASE_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all set in the server environment and the auth migrations have been applied.
+- When auth is not configured or no valid session exists, `GET /api/account/me` returns `401`.
+- No OAuth secret, session secret, database connection string, API key, bearer token, authorization header, real provider response, or real server IP was recorded.
+
+## Round 23 Boundaries
+- Saved history UI is still not exposed.
+- Version history UI is still not exposed.
+- Admin UI is still not implemented.
+- No maps, weather, search, or real-time travel data integration was added.
+- No unauthenticated save/list/detail API was added.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 23 Verification
+- `npm test`: passed, 17 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output now exposes `/api/account/me`, `/api/auth/[...nextauth]`, `/api/travel-plans/compare`, and `/api/travel-plans/generate`.
+- `npx tsc --noEmit`: passed.
+- Real PostgreSQL migration execution and real OAuth login verification: not run in this environment because no real auth provider or database credentials were provided.
+
+## Round 23 Next Steps
+- Provision a real PostgreSQL database and apply migrations in a controlled environment.
+- Configure `AUTH_SECRET`, `AUTH_URL`, and one OAuth provider in server-only environment variables.
+- Verify a full OAuth sign-in flow and then retest `GET /api/account/me` with a real authenticated session.
+- Build authenticated save/list/detail history APIs only after the current-user boundary is verified.
+
+## Round 23 Record Time
+- Date: 2026-06-08
+- Stage: MVP coding round 23
+
 # Project State - MVP Round 22
 ## Round 22 Current State
 - Round 22 establishes the minimum PostgreSQL database skeleton for future saved history, version history, and login integration.

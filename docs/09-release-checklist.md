@@ -30,6 +30,28 @@ DATABASE_URL=
 
 Keep `DATABASE_URL` empty unless a real PostgreSQL database has been provisioned outside this round. Do not commit `.env`, `.env.local`, database passwords, server IPs, API keys, bearer tokens, or authorization headers. This round does not enable login, saved history UI, public save/list/detail APIs, or user-usable version history.
 
+## Round 23 Auth Configuration Note
+
+The app now includes a minimal server-side Auth.js session boundary for future account history APIs. Runtime examples may list only empty variable names:
+
+```env
+AUTH_SECRET=
+AUTH_URL=
+DATABASE_URL=
+AUTH_GITHUB_ID=
+AUTH_GITHUB_SECRET=
+```
+
+Real OAuth login is considered configured only when `AUTH_SECRET`, `DATABASE_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all set in the server environment and the auth migrations have been applied. If any are missing, the auth provider is not treated as ready and `GET /api/account/me` must return `401` for unauthenticated access.
+
+Release checks:
+
+- `GET /api/account/me` returns `401` when no valid session is present.
+- A valid session returns only user summary fields: `id`, `email`, `name`, and `image`.
+- Responses, logs, docs, examples, and tests do not expose OAuth secrets, `AUTH_SECRET`, session tokens, provider tokens, `DATABASE_URL`, API keys, bearer tokens, or authorization headers.
+- Saved history UI, version history UI, admin UI, and unauthenticated save/list/detail APIs remain unavailable.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
 ## Mock 模式验收
 
 本地或临时服务使用：

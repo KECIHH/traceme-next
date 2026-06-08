@@ -24,6 +24,12 @@ const migrationPath = path.join(
   "migrations",
   "0001_account_history_skeleton.sql",
 );
+const authMigrationPath = path.join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "0002_auth_session_boundary.sql",
+);
 
 const validRequest: GenerateTripPlanRequest = GenerateTripPlanRequestSchema.parse({
   departureCity: "Shanghai",
@@ -80,6 +86,32 @@ test("account history migration declares required tables, columns, and indexes",
   ]) {
     assert.match(sql, new RegExp(requiredIndex, "i"));
   }
+});
+
+test("auth migration declares session boundary tables without replacing users", async () => {
+  const sql = await readFile(authMigrationPath, "utf8");
+
+  for (const tableName of ["accounts", "sessions", "verification_token"]) {
+    assert.match(sql, new RegExp(`CREATE TABLE ${tableName}`, "i"));
+  }
+
+  for (const requiredFragment of [
+    'ADD COLUMN IF NOT EXISTS name text',
+    'ADD COLUMN IF NOT EXISTS image text',
+    'ADD COLUMN IF NOT EXISTS "emailVerified" timestamptz',
+    '"userId" uuid NOT NULL REFERENCES users\\(id\\) ON DELETE CASCADE',
+    '"sessionToken" varchar\\(255\\) NOT NULL UNIQUE',
+    'PRIMARY KEY \\(identifier, token\\)',
+    'accounts_provider_account_unique UNIQUE \\(provider, "providerAccountId"\\)',
+    'accounts_user_id_idx',
+    'sessions_user_id_idx',
+  ]) {
+    assert.match(sql, new RegExp(requiredFragment, "i"));
+  }
+
+  assert.doesNotMatch(sql, /DROP TABLE users/i);
+  assert.doesNotMatch(sql, /CREATE TABLE users/i);
+  assert.doesNotMatch(sql, /password_hash/i);
 });
 
 test("trip plan persistence helpers validate user ids and version numbers", () => {

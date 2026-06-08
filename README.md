@@ -148,6 +148,31 @@ DATABASE_URL=
 
 Leave `DATABASE_URL` empty when no PostgreSQL database is available. The current app does not expose login, saved history UI, public save/list/detail APIs, or user-usable version history yet. Do not commit `.env`, `.env.local`, real database passwords, server addresses, API keys, bearer tokens, or authorization headers.
 
+## Auth Session Boundary
+
+Round 23 adds a minimal server-side authentication/session boundary with Auth.js for future account history APIs. It adds the Auth.js route handler, a server-only current-user helper, and `GET /api/account/me`.
+
+Required empty environment variable names:
+
+```env
+AUTH_SECRET=
+AUTH_URL=
+DATABASE_URL=
+```
+
+Optional GitHub OAuth provider variable names:
+
+```env
+AUTH_GITHUB_ID=
+AUTH_GITHUB_SECRET=
+```
+
+Real login is enabled only when `AUTH_SECRET`, `DATABASE_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all configured in the server environment and the auth migrations have been applied. Without those values, the protected account API returns `401` and the auth provider is considered not configured. This round has not completed real provider verification.
+
+`GET /api/account/me` returns only a non-sensitive user summary: `id`, `email`, `name`, and `image`. It must not return provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or database connection strings.
+
+This round still does not expose saved history UI, version history UI, management UI, or unauthenticated save/list/detail APIs.
+
 ## Smoke Test
 
 部署后可运行：
