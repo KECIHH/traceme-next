@@ -1,12 +1,93 @@
+# 项目状态记录 - MVP 编码阶段第 17 轮
+
+## 第 17 轮当前状态
+
+- 本轮定位为正式发布前人工产品验收、隐私脱敏检查和发布口径确认，未实现新产品功能。
+- 测试对象：`[测试部署 URL]`。
+- 目标 provider：`[真实 AI Provider]`，页面和 API 仅记录 provider 类型 `openai-compatible`，不记录真实服务商敏感信息。
+- 本轮继续保持边界：
+  - 未改变 `POST /api/travel-plans/generate`。
+  - 未修改核心业务逻辑。
+  - 未删除 mock provider。
+  - 未实现数据库、登录、地图、天气、搜索、PDF、版本历史、方案对比或行程优化。
+  - 未修改 `.env`、`.env.local` 或提交任何密钥。
+  - 未执行 git commit。
+
+## 第 17 轮人工浏览器验收结果
+
+- 桌面端验收通过：
+  - 首页可访问，页面包含 `TraceMe Next` 应用标识。
+  - 表单可填写，目的地输入、出发地、日期、人数和预算均可编辑。
+  - 目的地推荐共展示 4 项，点击推荐项后可回填目的地输入框。
+  - 清空目的地后提交会显示清晰的表单校验提示。
+  - 提交真实 AI 生成后，生成按钮进入 disabled/loading 状态，随后进入成功状态并展示完整结果。
+  - 真实 AI 结果可完整展示，包含每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、用户自行确认事项和免责声明。
+  - 结果来源为 `openai-compatible`，结果类型为 `AI 草稿`。
+  - 页面可见出发前自行确认提醒。
+  - 点击“复制全文”后出现成功反馈。
+  - 点击“下载 Markdown”后触发 `.md` 文件下载，下载文件非空。
+  - 桌面初始态和生成结果态均未发现横向溢出。
+- 移动端首页/表单验收通过：
+  - 390px 宽度下首页可访问，表单可填写。
+  - 移动端初始态未发现明显重叠或横向溢出。
+  - 审查后使用 `[本地验证 URL]` 生产构建 mock 路径补跑移动端生成结果态：结果结构可见、复制/下载操作区可见，390px 视口 `scrollWidth` 等于视口宽度，未发现横向溢出或脚本错误。
+- API 结构辅助验收通过：
+  - 合法请求返回 HTTP 200、`ok=true`。
+  - `source.provider=openai-compatible`，`source.kind=ai`。
+  - 3 天请求返回 3 天行程，天数一致。
+  - `userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
+- 浏览器自动化未捕捉到 console error 或 page error。
+
+## 第 17 轮发布文案与隐私脱敏结果
+
+- 发布文案检查通过：
+  - 页面未将 AI 输出承诺为实时、准确、官方价格或保证结果。
+  - 页面继续以 AI 草稿、参考信息和出发前自行确认为主要口径。
+  - 当前 MVP 未被描述为可保存历史或具备数据库持久化能力。
+  - 文案中出现的“实时”等词仅用于提醒用户自行核对信息或说明推荐不代表实时热度，不构成产品承诺。
+- 隐私脱敏检查通过：
+  - `docs/08-project-state.md` 中真实测试 URL、公开测试 IP 和真实 AI 服务商名称已替换为占位符。
+  - git 跟踪文件扫描未发现公开真实 IP。
+  - git 跟踪文件扫描未发现真实 API Key 或 `sk-` 形态密钥。
+  - `API Key`、`Authorization`、`Bearer`、`api-key` 等命中项均为安全说明文字、环境变量名或服务端正常构造 header 的代码，不包含真实值。
+  - 未修改 `.env`、`.env.local`，未提交密钥。
+
+## 第 17 轮发布前可接受性判断
+
+- 当前无持久化：接受，仅作为测试版发布；刷新后不保存历史属于已知 MVP 限制。
+- 当前无正式域名、HTTPS 和反向代理：接受，仅作为测试版发布；不包装为正式稳定生产环境。
+- 当前页面布局和核心交互质量：接受，人工验收未发现 P0/P1 产品体验问题。
+- 当前发布口径：建议进入测试版发布，不建议对外描述为稳定正式版。
+- 发布阻塞问题：未发现 P0/P1 发布阻塞问题。
+
+## 第 17 轮验证结果
+
+- `npm test`：已通过。
+- `npm run lint`：已通过。
+- `npm run build`：已通过。
+- `npx tsc --noEmit`：已通过。
+
+## 第 17 轮审查后修复记录
+
+- 修复范围仅限发布前验收记录和脱敏口径，不修改源码、API、核心业务逻辑或环境文件。
+- 已将历史本地生产构建、dev server 和 mock 验证记录中的本地地址占位统一为 `[本地验证 URL]`，避免与线上 `[测试部署 URL]` 混用。
+- 已补跑移动端生成结果态布局验收：使用 `[本地验证 URL]` 的生产构建 mock 路径验证结果结构、复制/下载操作区和 390px 视口横向溢出，未发现重叠、横向溢出或脚本错误。
+- 继续确认本轮未写入真实服务器 IP、真实 API Key、真实 Authorization、Bearer token 或真实 AI 服务商敏感信息。
+
+## 记录时间
+
+- 日期：2026-06-07
+- 阶段：MVP 编码阶段第 17 轮
+
 # 项目状态记录 - MVP 编码阶段第 16 轮
 
 ## 第 16 轮当前状态
 
 - 本轮定位为云服务器 Docker Compose 测试部署与线上 smoke test，未实现新产品功能。
-- 实际部署状态：未部署成功；已收到云服务器一键部署失败摘要，失败点为默认 SSH 克隆仓库时服务器没有 GitHub public key；当前仍没有可验证的测试部署 URL。
+- 实际部署状态：云服务器测试部署已完成，测试部署 URL 为 `[测试部署 URL]`。
 - 目标部署模式：`AI_PROVIDER=openai-compatible`。
-- 目标 provider 形态：服务端 `AI_CHAT_COMPLETIONS_URL` 指向中转站 `/v1/responses` endpoint，服务端 `AI_MODEL` 使用当前 DeepSeek 测试模型值。
-- 本轮未记录、输出、提交或写入任何真实 API Key、真实 provider endpoint、真实模型值或 `.env` 内容。
+- 目标 provider 形态：服务端 `AI_CHAT_COMPLETIONS_URL` 指向中转站 `/v1/responses` endpoint，服务端 `AI_MODEL` 使用当前 [真实 AI Provider] 测试模型值。
+- 本轮未记录、输出、提交或写入任何真实 API Key 或 `.env` 内容；仅记录公开测试部署 URL、脱敏 endpoint 形态和非敏感 smoke 摘要。
 - 本轮继续保持边界：
   - 未改变 `POST /api/travel-plans/generate`。
   - 未修改核心业务逻辑。
@@ -25,30 +106,29 @@
 - 已复核 `openai-compatible` provider 支持 `/v1/responses` 形态；当配置 URL 路径以 `/responses` 结尾时会走 Responses 请求体。
 - 已执行仓库敏感模式扫描，命中项为安全说明文字和服务端正常构造 `Authorization` header 的代码位置；未发现真实 API Key 值。
 
-## 第 16 轮未完成项与阻塞原因
+## 第 16 轮线上复验结果
 
-- 未能在云服务器确认 Docker daemon 状态；当前一键部署命令在拉取仓库阶段失败，尚未进入 Docker 检查、构建或启动阶段。
-- 未能确认云服务器 `.env` 或服务端环境变量状态，因为不能读取或输出服务器真实配置。
-- 未执行云服务器 `docker compose build` 或 `docker compose up -d`。
-- 未获取测试部署 URL；目标 URL 仍待服务器公网 IP 与实际 `APP_PORT` 确认。
-- 未对线上首页执行 smoke test。
-- 未对线上 `POST /api/travel-plans/generate` 执行合法请求 smoke test。
-- 未完成线上错误响应泄露检查。
-- 因缺少可验证部署 URL 和线上 smoke 结果，本轮不标记部署成功，也不假装 API 已在线通过。
+- Docker Compose 状态：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口为 `0.0.0.0:3000->3000/tcp` 和 `[::]:3000->3000/tcp`。
+- 服务器环境变量状态：`.env` 存在，未发现 `NEXT_PUBLIC_*` AI 密钥；服务器 `.env` 和容器环境均确认 `AI_PROVIDER=openai-compatible`，`AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 均为 set，未输出真实值。
+- [真实 AI Provider] 最小连通性：容器内对 `https://[真实 AI Provider]/chat/completions` 的最小请求返回 HTTP 200、`ok=true`、耗时约 294ms。
+- 首页 smoke：`[测试部署 URL]` 返回 HTTP 200，包含 `TraceMe Next` 应用标识，页面响应未命中敏感泄露模式。
+- 线上合法 API smoke：`POST /api/travel-plans/generate` 返回 HTTP 200、`ok=true`、`source.provider=openai-compatible`、`source.kind=ai`。
+- 行程结构 smoke：`input.days=3`，`dailyItinerary.length=3`，天数一致；`userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
+- 错误响应敏感信息扫描：非法请求返回 HTTP 400、`ok=false`、`error.code=BAD_REQUEST`，包含 `requestId`，未命中 API Key、`Bearer`、`Authorization` 或堆栈泄露模式。
+- 项目自带 smoke 脚本已对线上 URL 通过：`node scripts/smoke-travel-api.mjs --base-url [测试部署 URL] --expect-provider openai-compatible`。
 
-## 第 16 轮待用户贴回的脱敏结果
+## 第 16 轮修复过程摘要
 
-- 云服务器 Docker / Docker Compose / Docker daemon 检查摘要。
-- 云服务器 `.env` 存在性、必需变量是否非空、是否存在 `NEXT_PUBLIC_*` AI 密钥的脱敏摘要。
-- `docker compose build`、`docker compose up -d`、`docker compose ps` 的非敏感摘要。
-- 容器日志非敏感摘要，确认没有 API Key、`Bearer`、`Authorization`、堆栈或完整 provider URL 泄露。
-- 测试部署 URL，格式预期为 `http://服务器公网IP:APP_PORT`。
-- `node scripts/smoke-travel-api.mjs --base-url "$BASE_URL" --expect-provider openai-compatible` 的 JSON 摘要。
+- 一键部署最初失败：GitHub `main` raw 脚本默认使用 SSH 仓库地址，云服务器没有 GitHub public key，报 `Permission denied (publickey)`。
+- 已修复并推送 GitHub `main`：`e6dea21 Fix Docker Compose deploy clone URL`，默认仓库地址改为 `https://github.com/KECIHH/traceme-next.git`，保留 `TRACEME_REPO_URL` 覆盖能力。
+- 初次线上 API 返回 `provider=mock`、`kind=mock`；后续确认 `.env` 和容器环境均已进入 `openai-compatible`。
+- 真实 provider 初次调用返回 HTTP 502、`AI_PROVIDER_ERROR`；容器日志显示 `[真实 AI Provider]` timeout，且 endpoint 形态为 `other`。
+- 已将服务器 `.env` 的 `AI_CHAT_COMPLETIONS_URL` 调整为完整 Chat Completions endpoint，并将 `AI_REQUEST_TIMEOUT_MS` 调整为 `120000`；容器强制重建后，线上 openai-compatible smoke 通过。
 
 ## 第 16 轮发布建议
 
-- 当前不建议进入正式发布。
-- 只有云服务器 Docker Compose 部署完成、首页 smoke test 通过、API smoke test 返回 `source.provider=openai-compatible` 与 `source.kind=ai`、天数一致、五类 `userVerifyItems` 齐全，并且响应与日志摘要均无敏感泄露后，才建议进入正式发布。
+- 技术部署 smoke 已通过，可以进入正式发布前人工验收。
+- 由于用户已反馈页面布局、目的地灵感交互、生成结果质量和刷新后不保存等体验问题，当前不建议直接面向正式用户发布；建议先完成产品/体验验收并决定是否接受这些 MVP 限制。
 
 ## 第 16 轮审查后修复
 
@@ -66,12 +146,18 @@
 - 注意：服务器一键命令会从 GitHub `main` 分支读取 raw 脚本；本地修复需要进入 `main` 后，服务器重跑一键命令才会拿到新版 HTTPS 默认仓库地址。
 - 服务器复测结果：继续执行 GitHub `main` raw 一键命令时仍报 `Permission denied (publickey)`，已确认远端 raw 脚本当前仍是旧版 SSH 默认仓库地址；因此本地修复尚未对服务器一键命令生效。
 - 临时绕过方案：在服务器执行旧 raw 脚本时显式传入 `TRACEME_REPO_URL=https://github.com/KECIHH/traceme-next.git`；长期方案是将本地部署脚本修复提交并推送到 GitHub `main`。
+- 已将部署脚本修复提交并推送到 GitHub `main`：`e6dea21 Fix Docker Compose deploy clone URL`；远端 raw 脚本已确认默认仓库地址为 HTTPS。
 - 修复后复验状态：
-  - Docker Compose 启动：未复验，缺少云服务器执行能力；本地 Docker daemon 不可用。
-  - 线上首页：未复验，缺少真实测试部署 URL。
-  - 线上 `POST /api/travel-plans/generate`：未复验，缺少真实测试部署 URL。
-  - 错误响应敏感信息扫描：线上未复验；本地新增记录未写入真实 API Key、真实 provider endpoint、真实模型值或 `.env` 内容。
-- 修复后发布建议保持不变：不建议进入正式发布；必须先拿到云服务器 Docker/Compose 摘要、容器状态、测试部署 URL、首页/API smoke 结果和脱敏日志/错误摘要。
+  - 测试部署 URL：`[测试部署 URL]`。
+  - 首页 smoke：HTTP 200，`content-type=text/html; charset=utf-8`，包含 `TraceMe Next` 应用标识，页面响应未命中敏感泄露模式。
+  - 线上合法 API smoke 初次复验：HTTP 200，`ok=true`，`input.days=3`，`dailyItinerary.length=3`，天数一致，`userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类，响应未命中敏感泄露模式；但部署模式不通过，预期 `source.provider=openai-compatible`、`source.kind=ai`，实际返回 `source.provider=mock`、`source.kind=mock`。
+  - 服务器容器环境复核后再次复验：服务器 `.env` 与容器环境均显示 `AI_PROVIDER=openai-compatible`，`AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 均为 set；线上合法 API 一度变为 HTTP 502、`ok=false`、`error.code=AI_PROVIDER_ERROR`、包含 `requestId`，响应未命中敏感泄露模式。
+  - [真实 AI Provider] endpoint 修正后最终复验：项目自带 smoke 脚本通过；首页 HTTP 200；API HTTP 200、`ok=true`、`source.provider=openai-compatible`、`source.kind=ai`、天数一致、五类 `userVerifyItems` 齐全，响应未命中敏感泄露模式。
+  - 错误响应敏感信息扫描：非法请求返回 HTTP 400、`ok=false`、`error.code=BAD_REQUEST`，包含 `requestId`，未命中 API Key、`Bearer`、`Authorization` 或堆栈泄露模式。
+  - Docker Compose 启动：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口为 `0.0.0.0:3000->3000/tcp` 和 `[::]:3000->3000/tcp`。
+  - 服务器 `.env` 检查：`.env` 存在，未发现 `NEXT_PUBLIC_*` AI 密钥；服务器 `.env` 和容器环境均已确认 `AI_PROVIDER=openai-compatible`，三项真实 provider 必需变量均为 set，未输出真实值。
+- 当前判断：云服务器测试部署和线上 smoke test 已通过；正式发布前仍需人工确认是否接受当前 MVP 的无持久化、目的地灵感交互和页面布局/结果质量限制。
+- 修复后发布建议：技术上可进入正式发布前人工验收；不建议在用户反馈的产品体验问题未处理或未确认接受前直接正式发布。
 
 ## 记录时间
 
@@ -85,7 +171,7 @@
 - 本轮定位为部署环境确认与部署验收，未实现新产品功能。
 - 实际部署状态：未部署，只完成部署前验收。
 - 目标部署形态：本地 Windows 生产模式验收 + 云服务器 Docker Compose 测试部署。
-- 目标 AI 模式：以 `AI_PROVIDER=openai-compatible` 真实 DeepSeek 路径为主，同时保留并复验 `AI_PROVIDER=mock` 和 `openai-compatible` 缺配置错误路径。
+- 目标 AI 模式：以 `AI_PROVIDER=openai-compatible` 真实 [真实 AI Provider] 路径为主，同时保留并复验 `AI_PROVIDER=mock` 和 `openai-compatible` 缺配置错误路径。
 - 当前工作区进入本轮前为干净状态：`git status --short --branch` 显示 `## main...origin/main`。
 - 已确认 `.gitignore` 覆盖：
   - `.env.local` 命中 `.env*`。
@@ -430,26 +516,26 @@
 ## 第 12 轮验证结果
 
 - 真实 `AI_PROVIDER=openai-compatible` API 验收：
-  - 修复后使用生产构建临时服务 `http://127.0.0.1:3224`。
+  - 修复后使用生产构建临时服务 `[本地验证 URL]`。
   - 合法 3 天厦门旅行计划请求返回 HTTP 200、`ok: true`。
   - 响应为 `source.provider=openai-compatible`、`source.kind=ai`。
   - `input.days=3`，`dailyItinerary.length=3`。
   - `userVerifyItems` 五类齐全：门票/预约、营业时间、酒店价格、交通班次/价格、天气。
   - 响应摘要检查未发现密钥、Bearer、Authorization、`AI_API_KEY` 或堆栈泄漏特征。
 - 真实 AI 页面验收：
-  - 修复后使用生产构建临时服务 `http://127.0.0.1:3225` 和 in-app Browser 验证。
+  - 修复后使用生产构建临时服务 `[本地验证 URL]` 和 in-app Browser 验证。
   - 首页默认合法表单提交真实 AI 请求后，页面展示真实 AI 计划结果。
   - 页面可见 `OpenAI-compatible`、`AI 草稿`、`复制全文` 和 `下载 Markdown`。
   - `复制全文` 在当前 Codex in-app Browser 中走 textarea 手动复制兜底，显示“已展开 Markdown 全文，可手动复制。”，textarea 可见且有 Markdown 内容。
   - `下载 Markdown` 点击后显示“已开始下载 Markdown 文件。”成功反馈；Codex in-app Browser 不支持下载事件监听，本轮按页面反馈验收下载触发。
 - `AI_PROVIDER=mock` 回归：
-  - 修复后使用生产构建临时服务 `http://127.0.0.1:3226`。
+  - 修复后使用生产构建临时服务 `[本地验证 URL]`。
   - 合法 3 天请求返回 HTTP 200、`ok: true`。
   - 响应为 `source.provider=mock`、`source.kind=mock`。
   - `input.days=3`，`dailyItinerary.length=3`。
   - `userVerifyItems` 覆盖 `ticketReservation`、`openingHours`、`hotelPrice`、`transportSchedulePrice`、`weather` 五类。
 - `AI_PROVIDER=openai-compatible` 缺配置错误路径：
-  - 修复后使用生产构建临时服务 `http://127.0.0.1:3227`。
+  - 修复后使用生产构建临时服务 `[本地验证 URL]`。
   - 临时将 `AI_PROVIDER=openai-compatible` 且必需 provider 配置置空，不修改 `.env.local`。
   - 合法请求返回 HTTP 500、`ok: false`、`error.code=AI_PROVIDER_CONFIG_ERROR`，且包含 `requestId`。
   - 错误响应未出现密钥、Bearer、Authorization、`AI_API_KEY`、完整 URL 或堆栈泄漏特征。
@@ -492,12 +578,12 @@
   - 当前工作区未提供 `.env.local`。
   - 真实 `AI_PROVIDER=openai-compatible` 成功端到端调用未验证，未假装成功。
 - `AI_PROVIDER=mock` API 复验已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3154`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 合法 `POST /api/travel-plans/generate` 请求返回 HTTP 200、`ok: true`。
   - 成功响应中 `source.provider` 为 `mock`，`source.kind` 为 `mock`。
   - 成功响应中 `data.input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
 - `AI_PROVIDER=mock` 浏览器主流程复验已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3154` 和 in-app Browser 验证。
+  - 使用生产构建临时服务 `[本地验证 URL]` 和 in-app Browser 验证。
   - 首页表单可打开，点击“厦门”推荐项后可提交生成。
   - 成功后页面显示“已生成草稿”，并展示“复制全文”和“下载 Markdown”入口。
   - 开发用 JSON 预览中 `source.provider` 为 `mock`，`source.kind` 为 `mock`，`input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
@@ -563,18 +649,18 @@
   - 当前工作区未提供 `.env.local`。
   - 因此本轮未验证真实 `AI_PROVIDER=openai-compatible` 成功端到端调用，也不会假装真实 AI 调用成功。
 - `AI_PROVIDER=mock` API 验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3135`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 合法 `POST /api/travel-plans/generate` 请求返回 HTTP 200、`ok: true`。
   - 成功响应中 `data.input.destination` 为“厦门”。
   - 成功响应中 `source.provider` 为 `mock`，`source.kind` 为 `mock`。
   - 成功响应中 `data.input.days` 为 5，`dailyItinerary.length` 为 5，`userVerifyItems.length` 为 5。
 - `AI_PROVIDER=openai-compatible` 缺配置错误路径验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3136`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 未配置 `AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 时，合法业务请求返回 HTTP 500。
   - 错误响应为 `{ ok: false, error: { code: "AI_PROVIDER_CONFIG_ERROR", message, requestId } }`。
   - 错误响应未暴露 API Key、Authorization header、Bearer、堆栈、`AI_CHAT_COMPLETIONS_URL` 或供应商敏感信息。
 - 浏览器主流程验证已通过：
-  - 使用 mock 模式生产构建临时服务 `http://127.0.0.1:3143` 和无头 Edge 验证。
+  - 使用 mock 模式生产构建临时服务 `[本地验证 URL]` 和无头 Edge 验证。
   - 首页表单和 4 个目的地推荐项可见。
   - 点击推荐目的地后，`destination` 从“成都”回填为“厦门”。
   - 提交表单后，浏览器实际请求 `POST /api/travel-plans/generate`，网络响应为 HTTP 200、`application/json`。
@@ -635,7 +721,7 @@
   - `npx tsc --noEmit` 已通过。
   - `npm run build` 已通过。
 - Mock API 验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3132`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 提交目的地为“厦门”的合法请求返回 HTTP 200、`ok: true`。
   - 成功响应中 `data.input.destination` 为“厦门”，`overview` 包含“厦门”。
   - 成功响应中 `source.provider` 为 `mock`，`source.kind` 为 `mock`。
@@ -646,12 +732,12 @@
   - `budget.scope="perPerson"`、`budget.amount=4000`、`travelers=2` 时，mock `budgetBreakdown` 合计为 8000。
   - 页面和 Markdown 使用同一套 `getBudgetSummary(...)` 口径展示用户填写预算、总预算参考和人均预算参考。
 - `AI_PROVIDER=openai-compatible` 缺配置错误路径验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3133`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 未配置 `AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 时，合法业务请求返回 HTTP 500。
   - 错误响应为 `{ ok: false, error: { code: "AI_PROVIDER_CONFIG_ERROR", message, requestId } }`。
   - 错误响应未暴露 API Key、Authorization header、Bearer、堆栈等敏感文本。
 - 浏览器主流程验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3134`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 首页可打开，目的地输入改为“厦门”后可提交。
   - 成功后进入 `已生成草稿`，结果页展示“厦门”、`本地 mock`、`mock 草稿`、总预算参考 `¥8,000` 和人均预算参考 `¥4,000`。
   - 页面未出现成都专属景点或街区词。
@@ -761,18 +847,18 @@
 - `npm run build` 已通过。
 - `npx tsc --noEmit` 已通过。
 - `AI_PROVIDER=mock` API 验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3108`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 合法 `POST /api/travel-plans/generate` 返回 HTTP 200、`ok: true`。
   - 成功响应中 `data.input.days` 为 5，`dailyItinerary.length` 为 5。
   - 成功响应中 `userVerifyItems.length` 为 5。
   - 成功响应中 `generationMode` 为 `quick`。
 - `AI_PROVIDER=openai-compatible` 缺配置错误验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3109`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 未配置 `AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 时，合法业务请求返回 HTTP 500。
   - 错误响应为 `{ ok: false, error: { code: "AI_PROVIDER_CONFIG_ERROR", message, requestId } }`。
   - 错误响应未暴露 API Key、堆栈或供应商敏感信息。
 - 浏览器主流程验证已通过：
-  - 使用生产构建临时服务 `http://127.0.0.1:3110`。
+  - 使用生产构建临时服务 `[本地验证 URL]`。
   - 首页可打开，表单、目的地推荐和 mock 状态文案可见。
   - 点击目的地推荐可回填 `destination`。
   - 表单提交后进入 `已生成草稿` 状态。
@@ -869,7 +955,7 @@
   - 文案扫描已通过：未再发现把当前 mock 计划描述为 AI 生成的用户可见文案、旧 trips generate 业务路径、旧空状态文案或“当前基础预览”过期状态描述。
   - `docs/01-product-plan.md` 到 `docs/07-implementation-tasks.md` 未修改。
   - API 验证已通过：合法 `POST /api/travel-plans/generate` 返回 HTTP 200、`ok: true`、非空 `disclaimer` 和 5 条 `userVerifyItems`；非法请求返回 HTTP 400、`ok: false`、`BAD_REQUEST`。
-  - 浏览器验证已完成主要流程：`http://127.0.0.1:3000` 首页可打开，表单可提交，目的地推荐可回填，成功后展示完整结果、mock 免责声明、用户自行确认事项、“需确认/估算参考”提示、“复制全文”和“下载 Markdown”按钮。
+  - 浏览器验证已完成主要流程：`[本地验证 URL]` 首页可打开，表单可提交，目的地推荐可回填，成功后展示完整结果、mock 免责声明、用户自行确认事项、“需确认/估算参考”提示、“复制全文”和“下载 Markdown”按钮。
   - 下载 Markdown 按钮验证：点击后显示“已开始下载 Markdown 文件。”提示；in-app Browser 仍不支持下载落盘检查，因此未打开本地 `.md` 文件。
   - 复制全文按钮验证：按钮可见且代码仍复用 `formatTripPlanMarkdown(tripPlan)`；当前 in-app Browser 缺少虚拟剪贴板，点击后触发复制失败提示，因此本轮未能在该浏览器环境中验证剪贴板写入成功。
   - 代码质量检查已通过：`npm run lint`、`npm run build`、`npx tsc --noEmit` 均通过。
@@ -1197,13 +1283,13 @@
     - 未发现 `NEXT_PUBLIC_AI_API_KEY`。
     - 当前仍未接入真实 AI、数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史或保存到笔记。
   - API 验证已通过：
-    - 使用本地服务 `http://127.0.0.1:3000` 验证 `POST /api/travel-plans/generate`。
+    - 使用本地服务 `[本地验证 URL]` 验证 `POST /api/travel-plans/generate`。
     - 合法请求返回 HTTP 200、`ok: true`。
     - 成功响应包含非空 `data.disclaimer`。
     - 成功响应包含 5 条 `data.userVerifyItems`。
     - 非法请求返回 HTTP 400、`ok: false`、`error.code` 为 `BAD_REQUEST`。
   - 浏览器主流程验证已完成：
-    - 本轮优先尝试 `http://127.0.0.1:3100`，但当前项目已有 dev server 在 `http://127.0.0.1:3000`，实际使用 `http://127.0.0.1:3000` 完成验证。
+    - 本轮优先尝试 `[本地验证 URL]`，但当前项目已有 dev server 在 `[本地验证 URL]`，实际使用 `[本地验证 URL]` 完成验证。
     - 首页可打开，表单可填写。
     - 点击目的地推荐后，`destination` 输入框可回填。
     - 点击“生成旅行计划草稿”后出现 loading 状态。
@@ -1222,7 +1308,7 @@
   - `npm run build` 已通过。
   - `npx tsc --noEmit` 已通过。
   - 浏览器手动验证：
-    - 使用生产构建临时端口 `http://127.0.0.1:3100` 验证默认表单提交。
+    - 使用生产构建临时端口 `[本地验证 URL]` 验证默认表单提交。
     - 成功后进入 `已生成草稿` 状态，并展示“复制全文”和“下载 Markdown”按钮。
     - 点击“复制全文”后，页面显示复制成功提示，浏览器剪贴板读取到 Markdown 全文。
     - 已确认复制内容包含标题、生成时间、基本信息、旅行总览、每日行程、景区安排、餐饮建议、住宿建议、交通方案、预算拆分、准备清单、风险提醒、用户自行确认事项和免责声明。
@@ -1233,7 +1319,7 @@
   - `npm run build` 已通过。
   - `npx tsc --noEmit` 已通过。
   - 浏览器手动验证已通过：
-    - 使用生产构建临时端口 `http://127.0.0.1:3100` 验证默认表单提交。
+    - 使用生产构建临时端口 `[本地验证 URL]` 验证默认表单提交。
     - 成功后进入 `已生成草稿` 状态，并展示完整 `TripPlanResult`。
     - 桌面视口确认完整结果、基本信息、每日行程、景区安排、餐饮建议、住宿建议、交通方案、预算拆分、准备清单、风险提醒、用户自行确认事项、免责声明和开发用 JSON 折叠预览均可见。
     - 桌面视口确认 `需确认` 与 `估算参考` 标记可见，且无横向溢出。
@@ -1255,7 +1341,7 @@
     - 点击随机推荐项能回填 `destination`。
     - 合法提交会调用 `POST /api/travel-plans/generate` 并进入成功状态。
     - 成功后能展示基础结果预览、免责声明和 `userVerifyItems`。
-    - 修复后使用生产构建临时端口 `http://localhost:3100` 复验：当前标签未出现 `localhost:3100` hydration mismatch，推荐项可回填，mock 生成流程可成功显示基础预览。
+    - 修复后使用生产构建临时端口 `[本地验证 URL]` 复验：当前标签未出现本地验证地址 hydration mismatch，推荐项可回填，mock 生成流程可成功显示基础预览。
 - 第 3 轮验证结果：
   - `npm run lint` 已通过。
   - `npm run build` 已通过。
