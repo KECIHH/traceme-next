@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "auth:db-summary": "node scripts/auth-db-summary.mjs",
     "lint": "eslint",
     "test": "node --import tsx --test \"tests/**/*.test.ts\""
   },

@@ -5,6 +5,7 @@ import {
   createAccountMeResponse,
   toCurrentUser,
 } from "@/lib/account/current-user-summary";
+import { hasRequiredAuthEnvironment } from "@/lib/server/auth/config";
 
 test("protected account API returns 401 when no login session is available", async () => {
   const response = createAccountMeResponse(null);
@@ -21,6 +22,32 @@ test("protected account API returns 401 when no login session is available", asy
   assert.equal(response.status, 401);
   assert.equal(json.ok, false);
   assert.equal(json.error.code, "UNAUTHORIZED");
+});
+
+test("real auth login requires database, secret, callback URL, and OAuth credentials", () => {
+  const completeEnvironment = {
+    DATABASE_URL: "present",
+    AUTH_SECRET: "present",
+    AUTH_URL: "present",
+    AUTH_GITHUB_ID: "present",
+    AUTH_GITHUB_SECRET: "present",
+  };
+
+  assert.equal(hasRequiredAuthEnvironment(completeEnvironment), true);
+  assert.equal(
+    hasRequiredAuthEnvironment({
+      ...completeEnvironment,
+      AUTH_URL: "",
+    }),
+    false,
+  );
+  assert.equal(
+    hasRequiredAuthEnvironment({
+      ...completeEnvironment,
+      AUTH_GITHUB_SECRET: "   ",
+    }),
+    false,
+  );
 });
 
 test("account API summary exposes only non-sensitive fields", async () => {

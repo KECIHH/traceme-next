@@ -167,11 +167,35 @@ AUTH_GITHUB_ID=
 AUTH_GITHUB_SECRET=
 ```
 
-Real login is enabled only when `AUTH_SECRET`, `DATABASE_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all configured in the server environment and the auth migrations have been applied. Without those values, the protected account API returns `401` and the auth provider is considered not configured. This round has not completed real provider verification.
+Real login is enabled only when `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all configured in the server environment and the auth migrations have been applied. Without those values, the protected account API returns `401` and the auth provider is considered not configured. This round has not completed real provider verification.
 
 `GET /api/account/me` returns only a non-sensitive user summary: `id`, `email`, `name`, and `image`. It must not return provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or database connection strings.
 
 This round still does not expose saved history UI, version history UI, management UI, or unauthenticated save/list/detail APIs.
+
+## Real Auth Acceptance
+
+Round 24 adds safe local acceptance commands for the real PostgreSQL and OAuth boundary. These commands load server-only environment variables from the process environment or ignored local env files, but they print only presence checks, table names, row counts, and field-presence summaries.
+
+Run migrations against a controlled local or test database:
+
+```bash
+npm run db:migrate
+```
+
+Review the Auth.js database boundary without selecting provider tokens or session tokens:
+
+```bash
+npm run auth:db-summary
+```
+
+Manual acceptance checks:
+
+- Missing `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_GITHUB_ID`, or `AUTH_GITHUB_SECRET` means real migration/login verification is not complete.
+- Unauthenticated `GET /api/account/me` must return `401`.
+- After a real OAuth login, `GET /api/account/me` must return only `id`, `email`, `name`, and `image`.
+- Responses and logs must not include provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or database connection strings.
+- Saved history UI, version history UI, admin UI, and save/list/detail history APIs remain unavailable.
 
 ## Smoke Test
 

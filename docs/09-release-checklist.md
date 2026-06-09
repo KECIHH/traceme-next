@@ -42,7 +42,7 @@ AUTH_GITHUB_ID=
 AUTH_GITHUB_SECRET=
 ```
 
-Real OAuth login is considered configured only when `AUTH_SECRET`, `DATABASE_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all set in the server environment and the auth migrations have been applied. If any are missing, the auth provider is not treated as ready and `GET /api/account/me` must return `401` for unauthenticated access.
+Real OAuth login is considered configured only when `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` are all set in the server environment and the auth migrations have been applied. If any are missing, the auth provider is not treated as ready and `GET /api/account/me` must return `401` for unauthenticated access.
 
 Release checks:
 
@@ -50,6 +50,31 @@ Release checks:
 - A valid session returns only user summary fields: `id`, `email`, `name`, and `image`.
 - Responses, logs, docs, examples, and tests do not expose OAuth secrets, `AUTH_SECRET`, session tokens, provider tokens, `DATABASE_URL`, API keys, bearer tokens, or authorization headers.
 - Saved history UI, version history UI, admin UI, and unauthenticated save/list/detail APIs remain unavailable.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 24 Real Auth Acceptance
+
+Run the database migration only against a controlled local or test PostgreSQL database:
+
+```bash
+npm run db:migrate
+```
+
+Run the read-only database summary after migration and after a real OAuth login:
+
+```bash
+npm run auth:db-summary
+```
+
+Acceptance checks:
+
+- The migration command reports only variable presence, migration filenames, and required table status.
+- Required tables are present: `users`, `accounts`, `sessions`, `verification_token`, `trip_plan_records`, `trip_plan_versions`, and `schema_migrations`.
+- `GET /api/account/me` returns `401` when no valid session is present.
+- After a real OAuth login, `GET /api/account/me` returns only `id`, `email`, `name`, and `image`.
+- The database summary records only counts and user field-presence status; it must not select or print provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or connection strings.
+- If any required auth/database environment variable is missing, record the item as not verified instead of marking it passed.
+- Saved history UI, version history UI, admin UI, and save/list/detail history APIs remain unavailable.
 - `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
 
 ## Mock 模式验收

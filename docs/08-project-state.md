@@ -1,3 +1,46 @@
+# Project State - MVP Round 24
+## Round 24 Current State
+- Round 24 adds safe local acceptance tooling for real PostgreSQL migrations and the Auth.js OAuth/session boundary.
+- Added `npm run db:migrate`, which loads ignored local env files or process env, applies `db/migrations/*.sql` in filename order, and records applied files in `schema_migrations`.
+- Added `npm run auth:db-summary`, a read-only summary command that reports required table status, auth row counts, and latest user field-presence only.
+- Tightened the Auth.js readiness gate so real OAuth login requires `AUTH_URL` as well as database, secret, and OAuth credentials.
+- Added automated tests for the new acceptance tooling fail-closed path, redacted env presence output, non-sensitive summary query scope, and package script wiring.
+- Updated README and `docs/09-release-checklist.md` with real Auth acceptance steps using empty variable names and redacted output expectations.
+- No save history API, history page, version history UI, or admin UI was added.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 24 Verification
+- Initial local preflight found no checked-in or shell-provided auth/database environment values; no real value was recorded.
+- A local Docker PostgreSQL test database was started with one-time process-scoped credentials that were not written to `.env`, docs, tests, or source files.
+- `npm run db:migrate`: verified against the local Docker PostgreSQL test database. The first run applied `0001_account_history_skeleton.sql` and `0002_auth_session_boundary.sql`; the repeat run skipped both already-recorded migrations.
+- Required table status was verified as present: `users`, `accounts`, `sessions`, `verification_token`, `trip_plan_records`, `trip_plan_versions`, and `schema_migrations`.
+- `npm run auth:db-summary`: verified table presence and reported auth row counts on the local Docker PostgreSQL test database before and after the real OAuth login check.
+- Real OAuth login session was verified through the local fixed-port app. After login, `GET /api/account/me` returned `ok: true` with only the non-sensitive user summary fields `id`, `email`, `name`, and `image`.
+- Post-login database summary verified expected Auth.js records without selecting sensitive token columns: `users=1`, `accounts=1`, and `sessions=1`; latest user `id`, `email`, `name`, and `image` fields were present.
+- Post-review fix: the local auth readiness check now also requires `AUTH_URL`, so missing callback base URL cannot be mistaken for a configured real OAuth login path.
+- Final acceptance repair check: the redacted migration and database-summary commands were rerun against the local Docker PostgreSQL test database; table verification and real OAuth session verification passed.
+- Unauthenticated `GET /api/account/me` was verified on a local dev server and returned HTTP `401` with `error.code=UNAUTHORIZED`.
+- Logged-in `GET /api/account/me` was verified and no token, secret, password hash, session token, provider token, database connection string, API key, bearer token, or authorization header value was recorded.
+- API boundary check confirmed `src/app/api` still contains only `/api/account/me`, `/api/auth/[...nextauth]`, `/api/travel-plans/generate`, and `/api/travel-plans/compare`.
+- Search confirmed no save/history/version/restore API or UI route was added under `src/app/api`, `src/app/page.tsx`, or `src/components`.
+- Secret scan produced only expected safety-text, test fixture, migration-schema, and server-side header-construction hits; no real secret value, connection string, API key, bearer token, authorization header value, or provider token was recorded.
+
+## Round 24 Command Results
+- `npm test`: passed, 22 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output still exposes `/api/account/me`, `/api/auth/[...nextauth]`, `/api/travel-plans/compare`, and `/api/travel-plans/generate`.
+- `npx tsc --noEmit`: passed.
+
+## Round 24 Next Steps
+- Keep the local Docker PostgreSQL and OAuth credentials out of git-tracked files and shared docs.
+- Re-run the same redacted migration, OAuth, account summary, and database summary checks after any auth or migration change.
+- Enter saved history API work only after preserving the current authenticated-user and non-sensitive-summary boundaries.
+
+## Round 24 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP acceptance round 24
+
 # Project State - MVP Round 23
 ## Round 23 Current State
 - Round 23 establishes the minimum server-side authentication/session boundary for future saved history APIs.

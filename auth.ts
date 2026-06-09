@@ -3,15 +3,11 @@ import GitHub from "next-auth/providers/github";
 import PostgresAdapter from "@auth/pg-adapter";
 
 import { getDatabasePool } from "@/lib/server/db/connection";
-
-const hasGithubProvider =
-  Boolean(process.env.AUTH_GITHUB_ID?.trim()) &&
-  Boolean(process.env.AUTH_GITHUB_SECRET?.trim());
+import { hasRequiredAuthEnvironment } from "@/lib/server/auth/config";
 
 const hasDatabase = Boolean(process.env.DATABASE_URL?.trim());
-const hasAuthSecret = Boolean(process.env.AUTH_SECRET?.trim());
 
-export const isAuthLoginConfigured = hasGithubProvider && hasDatabase && hasAuthSecret;
+export const isAuthLoginConfigured = hasRequiredAuthEnvironment();
 
 const providers: NextAuthConfig["providers"] = isAuthLoginConfigured ? [GitHub] : [];
 
