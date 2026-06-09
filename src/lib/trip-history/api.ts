@@ -76,8 +76,18 @@ type VersionDetail = {
   tripPlan: TripPlan;
 };
 
+type VersionDetailWithId = VersionSummary & {
+  tripPlan: TripPlan;
+};
+
 type SaveRequestBody = {
   tripPlan?: unknown;
+};
+
+type AppendVersionRequestBody = SaveRequestBody;
+
+type RestoreVersionRequestBody = {
+  versionId?: unknown;
 };
 
 type RequireCurrentUser = () => Promise<CurrentUser>;
@@ -110,6 +120,51 @@ export type GetTripPlanDetailApiDependencies = {
     userId: string;
     tripPlanRecordId: string;
   }): Promise<TripPlanVersionForApi | null>;
+};
+
+export type ListTripPlanVersionsApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  listTripPlanVersionsForRecord(input: {
+    userId: string;
+    tripPlanRecordId: string;
+  }): Promise<VersionSummary[]>;
+};
+
+export type GetTripPlanVersionDetailApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  getTripPlanVersionById(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    versionId: string;
+  }): Promise<TripPlanVersionForApi | null>;
+};
+
+export type AppendTripPlanVersionApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  getTripPlanRecordById(input: {
+    userId: string;
+    id: string;
+  }): Promise<TripPlanRecordForApi | null>;
+  createTripPlanVersion(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    tripPlan: TripPlan;
+  }): Promise<TripPlanVersionForApi>;
+};
+
+export type RestoreTripPlanVersionApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  getTripPlanVersionById(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    versionId: string;
+  }): Promise<TripPlanVersionForApi | null>;
+  createTripPlanVersion(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    tripPlan: TripPlan;
+    restoreFromVersionId: string;
+  }): Promise<TripPlanVersionForApi>;
 };
 
 function createRequestId() {
@@ -187,7 +242,7 @@ function summarizeRecord(record: TripPlanRecordForApi): TripPlanRecordSummary {
   };
 }
 
-function summarizeVersion(version: TripPlanVersionForApi): VersionSummary {
+function summarizeVersion(version: VersionSummary): VersionSummary {
   return {
     id: version.id,
     versionNumber: version.versionNumber,
@@ -201,6 +256,13 @@ function detailVersion(version: TripPlanVersionForApi): VersionDetail {
     versionNumber: version.versionNumber,
     generatedAt: version.generatedAt,
     createdAt: version.createdAt,
+    tripPlan: version.tripPlanSnapshot,
+  };
+}
+
+function detailVersionWithId(version: TripPlanVersionForApi): VersionDetailWithId {
+  return {
+    ...summarizeVersion(version),
     tripPlan: version.tripPlanSnapshot,
   };
 }
@@ -371,6 +433,234 @@ export async function handleGetTripPlanDetailRequest(
     });
   } catch (error) {
     logInternalApiError("detail.record", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleListTripPlanVersionsRequest(
+  id: string,
+  dependencies: ListTripPlanVersionsApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("versions.list.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return notFoundResponse(requestId);
+  }
+
+  try {
+    const versions = await dependencies.listTripPlanVersionsForRecord({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+    });
+
+    if (versions.length === 0) {
+      return notFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        versions: versions.map(summarizeVersion),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("versions.list", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleGetTripPlanVersionDetailRequest(
+  id: string,
+  versionId: string,
+  dependencies: GetTripPlanVersionDetailApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("versions.detail.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id) || !isUuid(versionId)) {
+    return notFoundResponse(requestId);
+  }
+
+  try {
+    const version = await dependencies.getTripPlanVersionById({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+      versionId,
+    });
+
+    if (version === null) {
+      return notFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        version: detailVersionWithId(version),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("versions.detail", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleAppendTripPlanVersionRequest(
+  request: Request,
+  id: string,
+  dependencies: AppendTripPlanVersionApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("versions.append.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return notFoundResponse(requestId);
+  }
+
+  let body: AppendVersionRequestBody;
+
+  try {
+    body = (await request.json()) as AppendVersionRequestBody;
+  } catch {
+    return errorResponse("BAD_REQUEST", "Request body must be valid JSON.", requestId, 400);
+  }
+
+  const validationResult = TripPlanSchema.safeParse(body?.tripPlan);
+
+  if (!validationResult.success) {
+    return badRequestResponse(requestId);
+  }
+
+  try {
+    const record = await dependencies.getTripPlanRecordById({
+      userId: currentUser.id,
+      id,
+    });
+
+    if (record === null) {
+      return notFoundResponse(requestId);
+    }
+
+    const version = await dependencies.createTripPlanVersion({
+      userId: currentUser.id,
+      tripPlanRecordId: record.id,
+      tripPlan: validationResult.data,
+    });
+
+    return Response.json({
+      ok: true,
+      data: {
+        version: summarizeVersion(version),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("versions.append", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleRestoreTripPlanVersionRequest(
+  request: Request,
+  id: string,
+  dependencies: RestoreTripPlanVersionApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("versions.restore.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return notFoundResponse(requestId);
+  }
+
+  let body: RestoreVersionRequestBody;
+
+  try {
+    body = (await request.json()) as RestoreVersionRequestBody;
+  } catch {
+    return errorResponse("BAD_REQUEST", "Request body must be valid JSON.", requestId, 400);
+  }
+
+  if (typeof body?.versionId !== "string" || !isUuid(body.versionId)) {
+    return badRequestResponse(requestId);
+  }
+
+  try {
+    const restoredVersion = await dependencies.getTripPlanVersionById({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+      versionId: body.versionId,
+    });
+
+    if (restoredVersion === null) {
+      return notFoundResponse(requestId);
+    }
+
+    const currentVersion = await dependencies.createTripPlanVersion({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+      tripPlan: restoredVersion.tripPlanSnapshot,
+      restoreFromVersionId: restoredVersion.id,
+    });
+
+    return Response.json({
+      ok: true,
+      data: {
+        currentVersion: summarizeVersion(currentVersion),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("versions.restore", requestId, error);
     return internalErrorResponse(requestId);
   }
 }

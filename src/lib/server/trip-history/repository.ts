@@ -56,6 +56,13 @@ type TripPlanVersionDbRow = {
   note: string | null;
 };
 
+type TripPlanVersionSummaryDbRow = {
+  id: string;
+  version_number: number;
+  generated_at: string | Date;
+  created_at: string | Date;
+};
+
 type MaxVersionNumberDbRow = {
   max_version_number: number | string | null;
 };
@@ -96,6 +103,13 @@ export type TripPlanVersion = {
   note: string | null;
 };
 
+export type TripPlanVersionSummary = {
+  id: string;
+  versionNumber: number;
+  generatedAt: string;
+  createdAt: string;
+};
+
 export type CreateTripPlanRecordInput = {
   userId: string;
   tripPlan: unknown;
@@ -124,6 +138,19 @@ export type GetTripPlanRecordByIdInput = {
 export type GetCurrentTripPlanVersionForRecordInput = {
   userId: string;
   tripPlanRecordId: string;
+  db?: Queryable;
+};
+
+export type ListTripPlanVersionsForRecordInput = {
+  userId: string;
+  tripPlanRecordId: string;
+  db?: Queryable;
+};
+
+export type GetTripPlanVersionByIdInput = {
+  userId: string;
+  tripPlanRecordId: string;
+  versionId: string;
   db?: Queryable;
 };
 
@@ -232,6 +259,17 @@ function mapTripPlanVersion(row: TripPlanVersionDbRow): TripPlanVersion {
     createdAt: toDateTime(row.created_at) ?? "",
     restoreFromVersionId: row.restore_from_version_id,
     note: row.note,
+  };
+}
+
+function mapTripPlanVersionSummary(
+  row: TripPlanVersionSummaryDbRow,
+): TripPlanVersionSummary {
+  return {
+    id: row.id,
+    versionNumber: row.version_number,
+    generatedAt: toDateTime(row.generated_at) ?? "",
+    createdAt: toDateTime(row.created_at) ?? "",
   };
 }
 
@@ -569,6 +607,59 @@ export async function getCurrentTripPlanVersionForRecord(
       LIMIT 1
     `,
     [tripPlanRecordId, userId],
+  );
+  const row = result.rows[0];
+
+  return row === undefined ? null : mapTripPlanVersion(row);
+}
+
+export async function listTripPlanVersionsForRecord(
+  input: ListTripPlanVersionsForRecordInput,
+) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const db = getDb(input.db);
+  const result = await db.query<TripPlanVersionSummaryDbRow>(
+    `
+      SELECT
+        versions.id,
+        versions.version_number,
+        versions.generated_at,
+        versions.created_at
+      FROM trip_plan_records records
+      INNER JOIN trip_plan_versions versions
+        ON versions.trip_plan_record_id = records.id
+       AND versions.user_id = records.user_id
+      WHERE records.id = $1
+        AND records.user_id = $2
+        AND records.deleted_at IS NULL
+      ORDER BY versions.version_number DESC
+    `,
+    [tripPlanRecordId, userId],
+  );
+
+  return result.rows.map(mapTripPlanVersionSummary);
+}
+
+export async function getTripPlanVersionById(input: GetTripPlanVersionByIdInput) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const versionId = assertUuid(input.versionId, "versionId");
+  const db = getDb(input.db);
+  const result = await db.query<TripPlanVersionDbRow>(
+    `
+      SELECT versions.*
+      FROM trip_plan_records records
+      INNER JOIN trip_plan_versions versions
+        ON versions.trip_plan_record_id = records.id
+       AND versions.user_id = records.user_id
+      WHERE records.id = $1
+        AND records.user_id = $2
+        AND records.deleted_at IS NULL
+        AND versions.id = $3
+      LIMIT 1
+    `,
+    [tripPlanRecordId, userId, versionId],
   );
   const row = result.rows[0];
 

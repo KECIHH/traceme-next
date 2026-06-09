@@ -223,6 +223,15 @@ Round 27 adds the first manual save entry on the generated result page:
 - After a successful save, the page links to `/trips` and `/trips/[id]`.
 - This round still does not add version history UI, restore, share links, admin UI, or client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
 
+Round 28 adds protected server-side version history APIs only:
+
+- `GET /api/travel-plans/[id]/versions` lists safe version summaries for the current user's saved record.
+- `GET /api/travel-plans/[id]/versions/[versionId]` returns one safe version summary plus its `TripPlan` snapshot.
+- `POST /api/travel-plans/[id]/versions` appends a validated `{ tripPlan }` snapshot as the next version.
+- `POST /api/travel-plans/[id]/restore` creates a new current version copied from an owned historical version.
+
+All four APIs require `requireCurrentUser()`. Missing, invalid, soft-deleted, or cross-owner records and versions return `404`. Version summaries do not expose full snapshots; only the version detail API returns a `TripPlan`. This round still does not add version history UI, restore UI/buttons, share links, admin UI, or client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
+
 ## Smoke Test
 
 部署后可运行：
@@ -253,7 +262,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 ## Current Not Implemented
 
 - Automatic save.
-- Version history UI, versions list API, restore API, or share links.
+- Version history UI, restore UI/buttons, or share links.
 - Admin UI.
 - Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
 - Automatic save.

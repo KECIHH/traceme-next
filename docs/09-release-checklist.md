@@ -20,6 +20,10 @@ npx tsc --noEmit
 - `npm run build` 不依赖浏览器端密钥。
 - `npx tsc --noEmit` 无类型错误。
 
+## Current Round 28 Status Note
+
+The round sections below are historical acceptance notes unless a later round supersedes them. As of Round 28, the protected server-side versions and restore APIs are available, while version history UI, restore UI/buttons, share links, admin UI, and client-side database access remain unavailable. Use the Round 28 section as the current source of truth for version API release checks.
+
 ## Round 22 Database Configuration Note
 
 The app now includes a minimal server-only PostgreSQL skeleton for future saved history. Runtime configuration may include:
@@ -137,6 +141,29 @@ Release checks:
 - Re-clicking after a successful save is disabled or clearly marked as already saved for the current snapshot.
 - Generating a new plan resets the manual save state for the new snapshot.
 - Automated tests cover save client `401`/`400`/`500`, safe summary stripping, UI adapter safety, no browser storage persistence for `TripPlan`, and no automatic save call from the generation page.
+
+## Round 28 Protected Version History APIs
+
+Round 28 enables protected server-side version history APIs only:
+
+- `GET /api/travel-plans/[id]/versions` returns safe version summaries for the current user's saved record and does not return full snapshots.
+- `GET /api/travel-plans/[id]/versions/[versionId]` returns one safe version summary plus its `TripPlan` snapshot.
+- `POST /api/travel-plans/[id]/versions` accepts `{ tripPlan }`, validates it with `TripPlanSchema`, appends the next version, and updates the current version pointer.
+- `POST /api/travel-plans/[id]/restore` accepts `{ versionId }`, copies that owned version snapshot into a new current version, and leaves historical versions immutable.
+- All four APIs require `requireCurrentUser()` and scope every read/write by the current user.
+- Missing, invalid, soft-deleted, or cross-owner records and versions return `404`.
+- Version history UI, restore UI/buttons, share links, admin UI, and client-side database access remain unavailable.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
+Release checks:
+
+- Unauthenticated versions list/detail/append/restore requests return `401` with `error.code=UNAUTHORIZED`.
+- Invalid append snapshots return `400` with `error.code=BAD_REQUEST`.
+- Invalid restore bodies return `400` with `error.code=BAD_REQUEST`.
+- Cross-owner or missing versions and records return `404` with `error.code=NOT_FOUND`.
+- Append increments `version_number` and updates `trip_plan_records.current_version_id`.
+- Restore creates a new version copied from the restored snapshot instead of mutating the old version.
+- Responses and logs must not expose owner ids, internal record ids, restore metadata, notes, provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, connection strings, SQL, or stack traces.
 
 ## Mock 模式验收
 

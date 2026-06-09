@@ -1,3 +1,38 @@
+# Project State - MVP Round 28
+## Round 28 Current State
+- Round 28 adds the protected version-history API minimum loop without adding version-history UI.
+- Added `GET /api/travel-plans/[id]/versions`, which requires `requireCurrentUser()` and returns safe version summaries for the current user's non-deleted record.
+- Added `GET /api/travel-plans/[id]/versions/[versionId]`, which requires `requireCurrentUser()` and returns one safe version summary plus the saved `TripPlan` snapshot.
+- Added `POST /api/travel-plans/[id]/versions`, which requires `requireCurrentUser()`, accepts `{ tripPlan }`, validates it with `TripPlanSchema`, appends the next version, and updates the current-version pointer.
+- Added `POST /api/travel-plans/[id]/restore`, which requires `requireCurrentUser()`, accepts `{ versionId }`, copies that owned version snapshot into a new current version, and does not mutate old versions.
+- Version and restore API responses omit owner ids, record ids, raw snapshot fields in summaries, restore metadata, notes, soft-delete markers, SQL, stack traces, connection strings, tokens, secrets, API keys, bearer values, and authorization headers.
+- Post-review fix: the versions list repository query now selects only version summary columns and does not read or parse full `TripPlan` snapshots.
+- Missing, invalid, soft-deleted, or cross-owner records and versions return `404 NOT_FOUND`.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 28 Boundaries
+- No version history UI was added.
+- No restore button or restore UI was added.
+- No share link or admin UI was added.
+- No client-side database access was added; the new version operations are server API capabilities only.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 28 Verification
+- `npm test`: passed, 62 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/api/travel-plans/[id]/versions`, `/api/travel-plans/[id]/versions/[versionId]`, and `/api/travel-plans/[id]/restore` without share/admin routes.
+- `npx tsc --noEmit`: passed.
+- Automated tests cover unauthenticated versions list/detail/append/restore `401`.
+- Automated tests cover missing or cross-owner version access returning `404`.
+- Automated tests cover append `TripPlanSchema` validation and safe summary responses.
+- Automated tests cover repository version-number incrementing and restore-by-copy creation.
+- Automated tests cover list excluding snapshots at the response and repository-query levels, detail returning snapshots, and response safety for internal/sensitive fields.
+
+## Round 28 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 28
+
 # Project State - MVP Round 27
 ## Round 27 Current State
 - Round 27 adds the first manual save entry on the generated result page without adding automatic save.
