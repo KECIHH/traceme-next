@@ -1,3 +1,36 @@
+# Project State - MVP Round 30
+## Round 30 Current State
+- Round 30 only adds share-link product and technical design documentation.
+- Added `docs/11-share-link-design.md` to define the future public read-only share-link goal, target-version recommendation, data model draft, API draft, permission boundary, privacy risks, revocation strategy, first implementation scope, and later extensions.
+- The design explicitly states that TraceMe Next does not currently implement share links.
+- The recommended first share-link phase is fixed-version sharing: creating a link without explicitly choosing a version should bind to the record's current version at creation time, and later restore or append actions should not change that old shared snapshot.
+- Post-review cleanup redacted older local validation URLs and Docker listener endpoint details from this state log.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+- Existing save, history, versions, and restore API behavior remains unchanged.
+
+## Round 30 Boundaries
+- No share API was added.
+- No share UI was added.
+- No database migration was added.
+- No core business code was changed.
+- No admin UI, map, weather, or search capability was added.
+- No public shared-trip route was added.
+- No `package.json` dependency or script change was made.
+- No real server IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, API key, bearer token, authorization header value, or `.env` value was added to docs, tests, source, or output.
+
+## Round 30 Verification
+- `npm test`: passed, 67 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes the existing account, auth, travel-plan, save, history, versions, restore, `/trips`, and `/trips/[id]` routes without `/api/shared`, share-link API, or share UI routes.
+- `npx tsc --noEmit`: passed.
+- Repository changes were limited to documentation: `docs/11-share-link-design.md` and `docs/08-project-state.md`.
+- No database migration, package dependency, share API, share UI, admin UI, map, weather, search, or core business code change was added.
+
+## Round 30 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP design round 30
+
 # Project State - MVP Round 29
 ## Round 29 Current State
 - Round 29 adds the minimum version-history UI entry on `/trips/[id]` without adding diff, share, admin, maps, weather, or search features.
@@ -25,7 +58,7 @@
 - Automated tests cover versions client `401`, `404`, and `500` mapping.
 - Automated tests cover version list/detail/restore success adaptation, restore request body `{ versionId }`, and stripping of internal fields.
 - Automated tests cover safe UI adapter labels, historical preview copy, restore confirmation/success wording, and sensitive/internal text exclusion.
-- Local HTTP smoke against the existing dev server at `http://localhost:3152` returned HTTP `200` for `/trips/[id]`; unauthenticated versions list and restore API calls returned HTTP `401` with no `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, stack, bearer, or authorization details in the response body.
+- Local HTTP smoke against the existing dev server at `[local validation URL]` returned HTTP `200` for `/trips/[id]`; unauthenticated versions list and restore API calls returned HTTP `401` with no `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, stack, bearer, or authorization details in the response body.
 - In-app browser navigation to localhost was blocked by the browser side with `ERR_BLOCKED_BY_CLIENT`, so logged-in browser acceptance for list/preview/restore was not completed in this environment. Full browser acceptance still requires an authenticated local session with saved trip data.
 
 ## Round 29 Record Time
@@ -101,7 +134,7 @@
 - Automated tests were added to confirm the save entry code does not use `localStorage` or `sessionStorage` for `TripPlan` snapshots.
 - Automated tests were added to confirm the generation page does not import or call the save client automatically.
 - Post-review regression coverage confirms stale save completions cannot overwrite a newer snapshot's active save state.
-- Local HTTP acceptance used the existing dev server at `http://127.0.0.1:3152`; unauthenticated `POST /api/travel-plans/save` with a valid `TripPlan` returned HTTP `401` and did not include `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, or stack details in the response body.
+- Local HTTP acceptance used the existing dev server at `[local validation URL]`; unauthenticated `POST /api/travel-plans/save` with a valid `TripPlan` returned HTTP `401` and did not include `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, or stack details in the response body.
 - Full browser acceptance for logged-in save and `/trips/[id]` navigation was not completed in this environment because no authenticated browser session with real OAuth/database state was available.
 
 ## Round 27 Record Time
@@ -660,7 +693,7 @@
 
 ## 第 16 轮线上复验结果
 
-- Docker Compose 状态：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口为 `0.0.0.0:3000->3000/tcp` 和 `[::]:3000->3000/tcp`。
+- Docker Compose 状态：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口信息已替换为 `[local listener endpoints]`。
 - 服务器环境变量状态：`.env` 存在，未发现 `NEXT_PUBLIC_*` AI 密钥；服务器 `.env` 和容器环境均确认 `AI_PROVIDER=openai-compatible`，`AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 均为 set，未输出真实值。
 - [真实 AI Provider] 最小连通性：容器内对 `https://[真实 AI Provider]/chat/completions` 的最小请求返回 HTTP 200、`ok=true`、耗时约 294ms。
 - 首页 smoke：`[测试部署 URL]` 返回 HTTP 200，包含 `TraceMe Next` 应用标识，页面响应未命中敏感泄露模式。
@@ -706,7 +739,7 @@
   - 服务器容器环境复核后再次复验：服务器 `.env` 与容器环境均显示 `AI_PROVIDER=openai-compatible`，`AI_API_KEY`、`AI_MODEL`、`AI_CHAT_COMPLETIONS_URL` 均为 set；线上合法 API 一度变为 HTTP 502、`ok=false`、`error.code=AI_PROVIDER_ERROR`、包含 `requestId`，响应未命中敏感泄露模式。
   - [真实 AI Provider] endpoint 修正后最终复验：项目自带 smoke 脚本通过；首页 HTTP 200；API HTTP 200、`ok=true`、`source.provider=openai-compatible`、`source.kind=ai`、天数一致、五类 `userVerifyItems` 齐全，响应未命中敏感泄露模式。
   - 错误响应敏感信息扫描：非法请求返回 HTTP 400、`ok=false`、`error.code=BAD_REQUEST`，包含 `requestId`，未命中 API Key、`Bearer`、`Authorization` 或堆栈泄露模式。
-  - Docker Compose 启动：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口为 `0.0.0.0:3000->3000/tcp` 和 `[::]:3000->3000/tcp`。
+  - Docker Compose 启动：服务器 `docker compose ps` 显示 `traceme-next-traceme-next-1` 使用 `traceme-next:latest` 运行中，端口信息已替换为 `[local listener endpoints]`。
   - 服务器 `.env` 检查：`.env` 存在，未发现 `NEXT_PUBLIC_*` AI 密钥；服务器 `.env` 和容器环境均已确认 `AI_PROVIDER=openai-compatible`，三项真实 provider 必需变量均为 set，未输出真实值。
 - 当前判断：云服务器测试部署和线上 smoke test 已通过；正式发布前仍需人工确认是否接受当前 MVP 的无持久化、目的地灵感交互和页面布局/结果质量限制。
 - 修复后发布建议：技术上可进入正式发布前人工验收；不建议在用户反馈的产品体验问题未处理或未确认接受前直接正式发布。
