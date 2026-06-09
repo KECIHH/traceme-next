@@ -19,6 +19,7 @@ import { VerifyBadge } from "./verify-badge";
 
 type TripPlanResultProps = {
   tripPlan: TripPlan;
+  showDebugJson?: boolean;
 };
 
 const paceLabels: Record<Pace, string> = {
@@ -292,7 +293,7 @@ function RiskItem({ item }: { item: RiskReminder }) {
   );
 }
 
-export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
+export function TripPlanResult({ tripPlan, showDebugJson = true }: TripPlanResultProps) {
   const {
     input,
     overview,
@@ -559,17 +560,19 @@ export function TripPlanResult({ tripPlan }: TripPlanResultProps) {
         <p className="break-words text-sm leading-6 text-zinc-700">{tripPlan.disclaimer}</p>
       </SectionCard>
 
-      <details
-        className="min-w-0 rounded-md border border-zinc-200 bg-white p-4 shadow-sm"
-        data-print-hidden="true"
-      >
-        <summary className="cursor-pointer text-sm font-medium text-zinc-800">
-          开发用 JSON 预览
-        </summary>
-        <pre className="mt-3 max-h-80 overflow-auto rounded-md bg-zinc-950 p-4 text-xs leading-5 text-zinc-100">
-          {JSON.stringify(tripPlan, null, 2)}
-        </pre>
-      </details>
+      {showDebugJson ? (
+        <details
+          className="min-w-0 rounded-md border border-zinc-200 bg-white p-4 shadow-sm"
+          data-print-hidden="true"
+        >
+          <summary className="cursor-pointer text-sm font-medium text-zinc-800">
+            开发用 JSON 预览
+          </summary>
+          <pre className="mt-3 max-h-80 overflow-auto rounded-md bg-zinc-950 p-4 text-xs leading-5 text-zinc-100">
+            {JSON.stringify(tripPlan, null, 2)}
+          </pre>
+        </details>
+      ) : null}
     </div>
   );
 }

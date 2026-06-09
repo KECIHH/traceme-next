@@ -96,6 +96,26 @@ Release checks:
 - Saved history page, version history UI, admin UI, restore API, versions list API, share links, automatic save, maps, weather, search, and visible history entries remain unavailable.
 - `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
 
+## Round 26 Read-Only My Trips Pages
+
+Round 26 enables only read-only saved history UI entry points:
+
+- `/trips` lists the current logged-in user's saved trip summaries through `GET /api/travel-plans`.
+- `/trips/[id]` shows one saved trip's current `TripPlan` snapshot through `GET /api/travel-plans/[id]`.
+- Unauthenticated access shows an in-page login guide and must not render saved history data.
+- The detail page keeps copy full text, download Markdown, and browser print/save PDF actions.
+- The detail page must not show development JSON debug content.
+
+Release checks:
+
+- Unauthenticated `/trips` shows the login guide and does not expose saved trip data.
+- Logged-in `/trips` shows title, departure city, destination, date range, derived days, safe source kind/provider labels, created time, and updated time.
+- Logged-in `/trips/[id]` shows the saved `TripPlan` snapshot and export actions.
+- The front-end list/detail client handles `401`, `404`, `500`, network errors, and invalid schemas with fixed error kinds.
+- Front-end adapters strip internal fields such as owner ids, soft-delete markers, current version ids, restore metadata, and notes.
+- No save button, automatic save, version history UI, restore API/UI, share link, admin UI, maps, weather, search, or client-side database access is added.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
 ## Mock 模式验收
 
 本地或临时服务使用：

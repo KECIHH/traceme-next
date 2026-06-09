@@ -1,3 +1,39 @@
+# Project State - MVP Round 26
+## Round 26 Current State
+- Round 26 adds the minimum read-only saved-history UI entry points without adding any new write path.
+- Added `/trips`, which loads the current logged-in user's saved trip summaries through `GET /api/travel-plans`.
+- Added `/trips/[id]`, which loads one saved trip's current `TripPlan` snapshot through `GET /api/travel-plans/[id]`.
+- Added a front-end trip history client/service adapter that maps `401`, `404`, server, network, and invalid-schema failures to fixed UI error kinds.
+- The front-end adapter validates and strips response data before UI use, so owner ids, soft-delete markers, current-version pointers, restore metadata, and notes are not exposed to the pages.
+- The list page shows title, departure city, destination, date range, derived days, safe source kind/provider labels, created time, and updated time.
+- The detail page reuses `TripPlanResult` for the saved snapshot and keeps copy full text, download Markdown, and browser print/save PDF actions.
+- `TripPlanResult` now supports `showDebugJson`; generated results keep the previous default, while saved trip detail hides the development JSON preview.
+- Unauthenticated users see an in-page login guide and no saved history data is rendered.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+- Post-review fix: formatted the conditional development JSON preview block in `TripPlanResult`; this did not change visibility behavior, export actions, APIs, or saved-history boundaries.
+
+## Round 26 Boundaries
+- No save-to-history button was added.
+- No automatic save was added.
+- No version history UI, versions list UI, restore, share link, or admin UI was added.
+- No client-side database access was added; pages use only the protected list/detail APIs.
+- No `userId`, `DATABASE_URL`, auth secret, OAuth secret, API key, bearer token, authorization header value, SQL, or raw provider response is intentionally exposed.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 26 Verification
+- `npm test`: passed, 39 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/trips` and `/trips/[id]` plus the existing protected history APIs.
+- `npx tsc --noEmit`: passed.
+- Automated tests cover list/detail client handling for `401`, `404`, non-2xx success-shaped responses, plus response adapter stripping of internal record/version fields.
+- Local production HTTP smoke passed: `/trips` returned HTTP `200` and included the page title; unauthenticated `GET /api/travel-plans` and `GET /api/travel-plans/[id]` returned HTTP `401` with `error.code=UNAUTHORIZED` and no `userId` in the response body.
+- Logged-in browser acceptance for `/trips` and `/trips/[id]` was not completed in this environment because no active local browser session with saved trip data was available.
+
+## Round 26 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 26
+
 # Project State - MVP Round 25
 ## Round 25 Current State
 - Round 25 adds the minimum authenticated saved-history API loop without adding any saved history UI.

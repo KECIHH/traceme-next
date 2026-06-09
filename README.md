@@ -207,7 +207,12 @@ Round 25 adds the minimum authenticated server API loop for saved travel plans:
 
 All three APIs require `requireCurrentUser()` and return `401` when no valid login session is present. Missing, invalid, or cross-owner detail records return `404` to avoid exposing resource existence. Responses return only non-sensitive summaries and must not include user ownership ids, provider tokens, session tokens, OAuth secrets, database connection strings, API keys, bearer tokens, authorization headers, raw provider responses, or SQL details.
 
-This round still does not add a saved history page, version history UI, admin UI, restore API, versions list API, share link, automatic save, maps, weather, search, or any visible history entry. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
+Round 26 adds the first read-only saved history entry points:
+
+- `/trips` shows the current logged-in user's saved trip summaries.
+- `/trips/[id]` shows one saved trip's current `TripPlan` snapshot.
+
+These pages fetch only through the protected list/detail APIs above. Unauthenticated users see an in-page login guide and no saved data. The pages do not add a save button, automatic save, version history UI, restore, share link, admin UI, maps, weather, search, or any client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
 
 ## Smoke Test
 
@@ -238,7 +243,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 
 ## Current Not Implemented
 
-- Saved history page or visible history entry.
+- Save-to-history button or automatic save.
 - Version history UI, versions list API, restore API, or share links.
 - Admin UI.
 - Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
