@@ -5,15 +5,10 @@ import {
   toCurrentUser as mapSessionToCurrentUser,
   type CurrentUser,
 } from "@/lib/account/current-user-summary";
+import { AuthenticationRequiredError } from "@/lib/server/auth/errors";
 
 export { mapSessionToCurrentUser as toCurrentUser, type CurrentUser };
-
-export class AuthenticationRequiredError extends Error {
-  constructor(message = "Authentication is required.") {
-    super(message);
-    this.name = "AuthenticationRequiredError";
-  }
-}
+export { AuthenticationRequiredError };
 
 export async function getOptionalCurrentUser(): Promise<CurrentUser | null> {
   if (!isAuthLoginConfigured) {

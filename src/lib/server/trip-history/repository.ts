@@ -103,6 +103,8 @@ export type CreateTripPlanRecordInput = {
   db?: Queryable;
 };
 
+export type CreateTripPlanRecordWithInitialVersionInput = CreateTripPlanRecordInput;
+
 export type CreateTripPlanVersionInput = {
   userId: string;
   tripPlanRecordId: string;
@@ -116,6 +118,12 @@ export type CreateTripPlanVersionInput = {
 export type GetTripPlanRecordByIdInput = {
   userId: string;
   id: string;
+  db?: Queryable;
+};
+
+export type GetCurrentTripPlanVersionForRecordInput = {
+  userId: string;
+  tripPlanRecordId: string;
   db?: Queryable;
 };
 
@@ -307,6 +315,111 @@ export async function createTripPlanRecord(input: CreateTripPlanRecordInput) {
   return mapTripPlanRecord(row);
 }
 
+export async function createTripPlanRecordWithInitialVersion(
+  input: CreateTripPlanRecordWithInitialVersionInput,
+) {
+  const userId = assertUuid(input.userId, "userId");
+  const metadata = buildTripPlanRecordMetadata(input.tripPlan, input.title);
+
+  return withTransaction(input.db, async (db) => {
+    const recordResult = await db.query<TripPlanRecordDbRow>(
+      `
+        INSERT INTO trip_plan_records (
+          user_id,
+          title,
+          destination,
+          departure_city,
+          start_date,
+          end_date,
+          travelers,
+          budget_amount,
+          budget_currency,
+          budget_scope,
+          source_provider,
+          source_kind,
+          generation_mode
+        )
+        VALUES ($1, $2, $3, $4, $5::date, $6::date, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING *
+      `,
+      [
+        userId,
+        metadata.title,
+        metadata.destination,
+        metadata.departureCity,
+        metadata.startDate,
+        metadata.endDate,
+        metadata.travelers,
+        metadata.budgetAmount,
+        metadata.budgetCurrency,
+        metadata.budgetScope,
+        metadata.sourceProvider,
+        metadata.sourceKind,
+        metadata.generationMode,
+      ],
+    );
+    const recordRow = recordResult.rows[0];
+
+    if (recordRow === undefined) {
+      throw new TripPlanRepositoryError("Trip plan record was not created.");
+    }
+
+    const versionResult = await db.query<TripPlanVersionDbRow>(
+      `
+        INSERT INTO trip_plan_versions (
+          trip_plan_record_id,
+          user_id,
+          version_number,
+          trip_plan_snapshot,
+          source_provider,
+          source_kind,
+          generation_mode,
+          generated_at
+        )
+        VALUES ($1, $2, 1, $3::jsonb, $4, $5, $6, $7::timestamptz)
+        RETURNING *
+      `,
+      [
+        recordRow.id,
+        userId,
+        JSON.stringify(metadata.tripPlanSnapshot),
+        metadata.sourceProvider,
+        metadata.sourceKind,
+        metadata.generationMode,
+        metadata.generatedAt,
+      ],
+    );
+    const versionRow = versionResult.rows[0];
+
+    if (versionRow === undefined) {
+      throw new TripPlanRepositoryError("Trip plan version was not created.");
+    }
+
+    const updatedRecordResult = await db.query<TripPlanRecordDbRow>(
+      `
+        UPDATE trip_plan_records
+        SET current_version_id = $3,
+            updated_at = now()
+        WHERE id = $1
+          AND user_id = $2
+          AND deleted_at IS NULL
+        RETURNING *
+      `,
+      [recordRow.id, userId, versionRow.id],
+    );
+    const updatedRecordRow = updatedRecordResult.rows[0];
+
+    if (updatedRecordRow === undefined) {
+      throw new TripPlanRepositoryError("Trip plan record current version was not updated.");
+    }
+
+    return {
+      record: mapTripPlanRecord(updatedRecordRow),
+      currentVersion: mapTripPlanVersion(versionRow),
+    };
+  });
+}
+
 export async function createTripPlanVersion(input: CreateTripPlanVersionInput) {
   const userId = assertUuid(input.userId, "userId");
   const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
@@ -434,6 +547,32 @@ export async function getTripPlanRecordById(input: GetTripPlanRecordByIdInput) {
   const row = result.rows[0];
 
   return row === undefined ? null : mapTripPlanRecord(row);
+}
+
+export async function getCurrentTripPlanVersionForRecord(
+  input: GetCurrentTripPlanVersionForRecordInput,
+) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const db = getDb(input.db);
+  const result = await db.query<TripPlanVersionDbRow>(
+    `
+      SELECT versions.*
+      FROM trip_plan_records records
+      INNER JOIN trip_plan_versions versions
+        ON versions.id = records.current_version_id
+       AND versions.trip_plan_record_id = records.id
+       AND versions.user_id = records.user_id
+      WHERE records.id = $1
+        AND records.user_id = $2
+        AND records.deleted_at IS NULL
+      LIMIT 1
+    `,
+    [tripPlanRecordId, userId],
+  );
+  const row = result.rows[0];
+
+  return row === undefined ? null : mapTripPlanVersion(row);
 }
 
 export async function listTripPlanRecordsByUser(input: ListTripPlanRecordsByUserInput) {

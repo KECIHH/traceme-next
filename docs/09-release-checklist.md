@@ -77,6 +77,25 @@ Acceptance checks:
 - Saved history UI, version history UI, admin UI, and save/list/detail history APIs remain unavailable.
 - `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
 
+## Round 25 Saved History API Boundary
+
+Round 25 enables only the minimum authenticated saved-history API loop:
+
+- `POST /api/travel-plans/save` accepts `{ tripPlan }`, requires the current user, validates the snapshot with `TripPlanSchema`, and creates one record plus version `1`.
+- `GET /api/travel-plans` requires the current user and returns only that user's non-deleted record summaries.
+- `GET /api/travel-plans/[id]` requires the current user and returns that user's record summary plus the latest `TripPlan` snapshot.
+- Missing, invalid, cross-owner, or soft-deleted detail records should return `404` instead of confirming whether another user's resource exists.
+- Responses and logs must not expose owner ids, provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, connection strings, SQL, or stack traces.
+
+Release checks:
+
+- Unauthenticated save/list/detail requests return `401` with `error.code=UNAUTHORIZED`.
+- Invalid save request bodies return `400` with `error.code=BAD_REQUEST`.
+- Save creates exactly one record and initial version `1` for the current user.
+- List and detail APIs query by the current user's id and ignore soft-deleted records.
+- Saved history page, version history UI, admin UI, restore API, versions list API, share links, automatic save, maps, weather, search, and visible history entries remain unavailable.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
 ## Mock 模式验收
 
 本地或临时服务使用：

@@ -1,3 +1,34 @@
+# Project State - MVP Round 25
+## Round 25 Current State
+- Round 25 adds the minimum authenticated saved-history API loop without adding any saved history UI.
+- Added `POST /api/travel-plans/save`, which requires `requireCurrentUser()`, accepts `{ tripPlan }`, validates the snapshot with `TripPlanSchema`, and creates one `trip_plan_records` row plus one `trip_plan_versions` row with `versionNumber = 1`.
+- Added `GET /api/travel-plans`, which requires `requireCurrentUser()` and returns only the current user's non-deleted record summaries.
+- Added `GET /api/travel-plans/[id]`, which requires `requireCurrentUser()` and returns the current user's record summary plus the latest saved `TripPlan` snapshot.
+- Added a reusable saved-history API handler layer with injectable auth/repository dependencies for tests, while production routes pass the real `requireCurrentUser()` and server repository functions.
+- Added repository support for atomic initial save and current-version lookup.
+- Responses return non-sensitive summaries and do not expose owner ids, soft-delete markers, provider/session tokens, OAuth secrets, database connection strings, API keys, bearer tokens, authorization headers, SQL, or stack traces.
+- Missing, invalid, cross-owner, or soft-deleted detail records return `404 NOT_FOUND`.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 25 Boundaries
+- No saved history page or visible history entry was added.
+- No version history UI, versions list API, restore API, share link, admin UI, automatic save, maps, weather, or search capability was added.
+- No unauthenticated save/list/detail API was added.
+- Default save title is still derived from the `TripPlan` snapshot; no custom title or note input is exposed.
+- List/detail continue to ignore soft-deleted records.
+
+## Round 25 Verification
+- `npm test`: passed, 31 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/api/travel-plans`, `/api/travel-plans/[id]`, and `/api/travel-plans/save` plus the existing generate/compare/account/auth routes.
+- `npx tsc --noEmit`: passed after the production build regenerated `.next/types`.
+- Automated tests cover unauthenticated save/list/detail `401`, invalid save `400`, successful initial save record+version creation, owner-scoped list/detail behavior, no out-of-scope restore/version/share/admin/history routes, and repository owner/soft-delete query boundaries.
+
+## Round 25 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 25
+
 # Project State - MVP Round 24
 ## Round 24 Current State
 - Round 24 adds safe local acceptance tooling for real PostgreSQL migrations and the Auth.js OAuth/session boundary.

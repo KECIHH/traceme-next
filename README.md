@@ -195,7 +195,19 @@ Manual acceptance checks:
 - Unauthenticated `GET /api/account/me` must return `401`.
 - After a real OAuth login, `GET /api/account/me` must return only `id`, `email`, `name`, and `image`.
 - Responses and logs must not include provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or database connection strings.
-- Saved history UI, version history UI, admin UI, and save/list/detail history APIs remain unavailable.
+- Saved history UI, version history UI, admin UI, restore/version/share APIs, and any history page entry remain unavailable.
+
+## Saved History API Boundary
+
+Round 25 adds the minimum authenticated server API loop for saved travel plans:
+
+- `POST /api/travel-plans/save` saves `{ tripPlan }` for the current logged-in user only.
+- `GET /api/travel-plans` lists only the current user's non-deleted saved plan records.
+- `GET /api/travel-plans/[id]` returns only the current user's record summary and latest `TripPlan` snapshot.
+
+All three APIs require `requireCurrentUser()` and return `401` when no valid login session is present. Missing, invalid, or cross-owner detail records return `404` to avoid exposing resource existence. Responses return only non-sensitive summaries and must not include user ownership ids, provider tokens, session tokens, OAuth secrets, database connection strings, API keys, bearer tokens, authorization headers, raw provider responses, or SQL details.
+
+This round still does not add a saved history page, version history UI, admin UI, restore API, versions list API, share link, automatic save, maps, weather, search, or any visible history entry. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
 
 ## Smoke Test
 
@@ -224,17 +236,11 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 - 不要提交 `.env.local`。
 - 真实 AI 输出仍是草稿，不代表门票、营业时间、酒店价格、交通班次、天气等信息一定准确。
 
-## 当前未实现
+## Current Not Implemented
 
-- 数据库。
-- 用户登录。
-- 地图。
-- 天气。
-- 联网搜索。
-- 服务端 PDF 导出或精确排版 PDF。
-- 版本历史。
-- 保存历史或保存到笔记。
-- 方案对比。
-- 行程优化。
-- 真实票价、酒店价格、门票、交通班次、天气等实时数据能力。
-- 非 Chat Completions / Responses 兼容格式的第三方 Provider。
+- Saved history page or visible history entry.
+- Version history UI, versions list API, restore API, or share links.
+- Admin UI.
+- Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
+- Automatic save.
+- Non-Chat-Completions/Responses-compatible third-party provider adapters.
