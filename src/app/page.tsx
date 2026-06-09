@@ -198,7 +198,7 @@ export default function Home() {
                   disabled={isLoading}
                   onGenerate={generateComparison}
                 />
-                <TripPlanResult tripPlan={tripPlan} />
+                <TripPlanResult tripPlan={tripPlan} showSaveAction />
               </>
             ) : (
               <section

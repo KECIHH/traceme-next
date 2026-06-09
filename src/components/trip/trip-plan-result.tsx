@@ -20,6 +20,7 @@ import { VerifyBadge } from "./verify-badge";
 type TripPlanResultProps = {
   tripPlan: TripPlan;
   showDebugJson?: boolean;
+  showSaveAction?: boolean;
 };
 
 const paceLabels: Record<Pace, string> = {
@@ -293,7 +294,11 @@ function RiskItem({ item }: { item: RiskReminder }) {
   );
 }
 
-export function TripPlanResult({ tripPlan, showDebugJson = true }: TripPlanResultProps) {
+export function TripPlanResult({
+  tripPlan,
+  showDebugJson = true,
+  showSaveAction = false,
+}: TripPlanResultProps) {
   const {
     input,
     overview,
@@ -326,7 +331,7 @@ export function TripPlanResult({ tripPlan, showDebugJson = true }: TripPlanResul
         </p>
       </SectionCard>
 
-      <ResultActions tripPlan={tripPlan} />
+      <ResultActions tripPlan={tripPlan} showSaveAction={showSaveAction} />
 
       <SectionCard title="基本信息" description="本区块来自本次提交的旅行输入。">
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -1,3 +1,44 @@
+# Project State - MVP Round 27
+## Round 27 Current State
+- Round 27 adds the first manual save entry on the generated result page without adding automatic save.
+- The generated result action area can show `保存到我的行程` only when `TripPlanResult` receives `showSaveAction`.
+- The main generation page passes `showSaveAction` after a successful `TripPlan` generation.
+- Saved trip detail pages keep the default read-only behavior and do not show the save entry.
+- Added a front-end save client that posts `{ tripPlan }` only to `POST /api/travel-plans/save`.
+- Added a pure save-action UI adapter that maps idle, saving, saved, and error states to safe button labels, feedback text, and links.
+- Unauthenticated save attempts show a login prompt with a new-tab login link so the current generated result remains on the original page in memory.
+- The generated `TripPlan` is not written to `localStorage` or `sessionStorage`.
+- Successful saves disable repeat save for the current snapshot, show success feedback, and link to `/trips` and `/trips/[id]`.
+- A new generated snapshot resets the save state by `tripPlan.id` plus `tripPlan.generatedAt`.
+- Post-review fix: stale save completions are ignored unless the current save state is still `saving` for the same snapshot key, preventing an older request from clearing a newer snapshot's save-in-progress state.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 27 Boundaries
+- No automatic save was added.
+- No version history UI, versions list UI, restore, share link, or admin UI was added.
+- No client-side database access was added; saving uses only the protected save API.
+- No `userId`, `DATABASE_URL`, auth secret, OAuth secret, API key, bearer token, authorization header value, SQL, stack trace, or raw provider response is intentionally exposed.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 27 Verification
+- `npm test`: passed, 48 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes the existing `/api/travel-plans/save`, `/trips`, and `/trips/[id]` routes without new restore/share/admin routes.
+- `npx tsc --noEmit`: passed.
+- Automated tests were added for save client `401`, `400`, and `500` mapping.
+- Automated tests were added for safe success-summary mapping and stripping of internal record/version fields.
+- Automated tests were added for the UI adapter's safe success and unauthenticated-login view models.
+- Automated tests were added to confirm the save entry code does not use `localStorage` or `sessionStorage` for `TripPlan` snapshots.
+- Automated tests were added to confirm the generation page does not import or call the save client automatically.
+- Post-review regression coverage confirms stale save completions cannot overwrite a newer snapshot's active save state.
+- Local HTTP acceptance used the existing dev server at `http://127.0.0.1:3152`; unauthenticated `POST /api/travel-plans/save` with a valid `TripPlan` returned HTTP `401` and did not include `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, or stack details in the response body.
+- Full browser acceptance for logged-in save and `/trips/[id]` navigation was not completed in this environment because no authenticated browser session with real OAuth/database state was available.
+
+## Round 27 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 27
+
 # Project State - MVP Round 26
 ## Round 26 Current State
 - Round 26 adds the minimum read-only saved-history UI entry points without adding any new write path.

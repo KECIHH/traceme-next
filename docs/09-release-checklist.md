@@ -116,6 +116,28 @@ Release checks:
 - No save button, automatic save, version history UI, restore API/UI, share link, admin UI, maps, weather, search, or client-side database access is added.
 - `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
 
+## Round 27 Manual Save From Result Page
+
+Round 27 enables a manual save entry only after a generated `TripPlan` is visible:
+
+- The generated result action area shows `保存到我的行程` after successful generation.
+- Clicking it calls `POST /api/travel-plans/save` with `{ tripPlan }`; no client code should bypass this API or connect directly to the database.
+- The app must not automatically save every generated plan.
+- Unauthenticated save attempts show a login prompt and open login in a new tab, so the current in-memory result remains on the original page.
+- The generated `TripPlan` must not be persisted in `localStorage` or `sessionStorage`.
+- Successful saves show safe record feedback and links to `/trips` and `/trips/[id]`.
+- Save failures must use fixed safe messages for `401`, `400`, `500`, network, and invalid-response states.
+- `/trips` and `/trips/[id]` remain read-only; no version history UI, restore, share link, admin UI, maps, weather, search, or client-side database access is added.
+- `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+
+Release checks:
+
+- Unauthenticated generated-result save shows the login guide and keeps the current result visible in the original tab.
+- Logged-in generated-result save returns a safe summary and links to the saved detail page.
+- Re-clicking after a successful save is disabled or clearly marked as already saved for the current snapshot.
+- Generating a new plan resets the manual save state for the new snapshot.
+- Automated tests cover save client `401`/`400`/`500`, safe summary stripping, UI adapter safety, no browser storage persistence for `TripPlan`, and no automatic save call from the generation page.
+
 ## Mock 模式验收
 
 本地或临时服务使用：

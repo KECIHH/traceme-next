@@ -4,9 +4,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { formatTripPlanMarkdown } from "@/lib/markdown/format-trip-plan-markdown";
 import type { TripPlan } from "@/lib/schemas/trip";
+import {
+  buildSavingSaveTripPlanActionState,
+  buildSaveTripPlanActionView,
+  getEffectiveSaveTripPlanActionState,
+  settleSaveTripPlanActionState,
+  type ScopedSaveTripPlanActionState,
+} from "@/lib/services/save-trip-plan-action-view";
+import { saveTripPlanClient } from "@/lib/services/save-trip-plan-client";
 
 type ResultActionsProps = {
   tripPlan: TripPlan;
+  showSaveAction?: boolean;
 };
 
 type FeedbackState = {
@@ -66,11 +75,21 @@ async function copyTextToClipboard(text: string) {
   throw new Error("Copy is not available in this browser.");
 }
 
-export function ResultActions({ tripPlan }: ResultActionsProps) {
+function getTripPlanSnapshotKey(tripPlan: TripPlan) {
+  return `${tripPlan.id}:${tripPlan.generatedAt}`;
+}
+
+export function ResultActions({ tripPlan, showSaveAction = false }: ResultActionsProps) {
+  const snapshotKey = getTripPlanSnapshotKey(tripPlan);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [manualCopyText, setManualCopyText] = useState("");
+  const [saveState, setSaveState] = useState<ScopedSaveTripPlanActionState>({
+    status: "idle",
+  });
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const manualCopyTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const effectiveSaveState = getEffectiveSaveTripPlanActionState(saveState, snapshotKey);
+  const saveActionView = buildSaveTripPlanActionView(effectiveSaveState);
 
   function showFeedback(nextFeedback: NonNullable<FeedbackState>) {
     setFeedback(nextFeedback);
@@ -166,6 +185,39 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
     window.print();
   }
 
+  async function handleSave() {
+    if (
+      !showSaveAction ||
+      effectiveSaveState.status === "saving" ||
+      effectiveSaveState.status === "saved"
+    ) {
+      return;
+    }
+
+    const requestSnapshotKey = snapshotKey;
+    setManualCopyText("");
+    setSaveState(buildSavingSaveTripPlanActionState(requestSnapshotKey));
+
+    const result = await saveTripPlanClient(tripPlan);
+
+    if (result.ok) {
+      setSaveState((currentState) =>
+        settleSaveTripPlanActionState(currentState, requestSnapshotKey, {
+          status: "saved",
+          data: result.data,
+        }),
+      );
+      return;
+    }
+
+    setSaveState((currentState) =>
+      settleSaveTripPlanActionState(currentState, requestSnapshotKey, {
+        status: "error",
+        error: result.error,
+      }),
+    );
+  }
+
   return (
     <div
       className="min-w-0 rounded-md border border-emerald-100 bg-emerald-50 p-4"
@@ -180,6 +232,16 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row" data-print-hidden="true">
+          {showSaveAction ? (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveActionView.buttonDisabled}
+              className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-zinc-400"
+            >
+              {saveActionView.buttonLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleCopy}
@@ -203,6 +265,48 @@ export function ResultActions({ tripPlan }: ResultActionsProps) {
           </button>
         </div>
       </div>
+      {showSaveAction && saveActionView.feedback ? (
+        <div
+          aria-live="polite"
+          className={`mt-3 break-words rounded-md px-3 py-2 text-sm leading-6 ${
+            saveActionView.feedback.tone === "success"
+              ? "bg-white text-emerald-800 ring-1 ring-emerald-200"
+              : "bg-red-50 text-red-800 ring-1 ring-red-200"
+          }`}
+        >
+          <p>{saveActionView.feedback.message}</p>
+          {saveActionView.loginLink ? (
+            <a
+              href={saveActionView.loginLink.href}
+              target={saveActionView.loginLink.target}
+              rel={saveActionView.loginLink.rel}
+              className="mt-2 inline-flex rounded-md bg-white px-3 py-2 font-semibold text-red-800 ring-1 ring-red-200 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              {saveActionView.loginLink.label}
+            </a>
+          ) : null}
+          {saveActionView.detailLink || saveActionView.listLink ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {saveActionView.detailLink ? (
+                <a
+                  href={saveActionView.detailLink}
+                  className="inline-flex rounded-md bg-emerald-700 px-3 py-2 font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  查看详情
+                </a>
+              ) : null}
+              {saveActionView.listLink ? (
+                <a
+                  href={saveActionView.listLink}
+                  className="inline-flex rounded-md bg-white px-3 py-2 font-semibold text-emerald-900 ring-1 ring-emerald-200 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  查看我的行程
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {feedback ? (
         <p
           aria-live="polite"

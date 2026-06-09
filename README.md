@@ -146,7 +146,7 @@ Round 22 adds a server-only PostgreSQL skeleton for future account history. Conf
 DATABASE_URL=
 ```
 
-Leave `DATABASE_URL` empty when no PostgreSQL database is available. The current app does not expose login, saved history UI, public save/list/detail APIs, or user-usable version history yet. Do not commit `.env`, `.env.local`, real database passwords, server addresses, API keys, bearer tokens, or authorization headers.
+Leave `DATABASE_URL` empty when no PostgreSQL database is available. Round 22 did not expose login, saved history UI, public save/list/detail APIs, or user-usable version history. Do not commit `.env`, `.env.local`, real database passwords, server addresses, API keys, bearer tokens, or authorization headers.
 
 ## Auth Session Boundary
 
@@ -214,6 +214,15 @@ Round 26 adds the first read-only saved history entry points:
 
 These pages fetch only through the protected list/detail APIs above. Unauthenticated users see an in-page login guide and no saved data. The pages do not add a save button, automatic save, version history UI, restore, share link, admin UI, maps, weather, search, or any client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
 
+Round 27 adds the first manual save entry on the generated result page:
+
+- The result action area shows `保存到我的行程` only after a `TripPlan` is successfully generated.
+- The button calls only `POST /api/travel-plans/save`; generated plans are not saved automatically.
+- Saving requires login. If the user is not logged in, the page keeps the current generated result in memory, shows a login prompt, and opens the login entry in a new tab so the user can return and click save again.
+- The generated `TripPlan` is not written to `localStorage` or `sessionStorage`.
+- After a successful save, the page links to `/trips` and `/trips/[id]`.
+- This round still does not add version history UI, restore, share links, admin UI, or client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
+
 ## Smoke Test
 
 部署后可运行：
@@ -243,7 +252,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 
 ## Current Not Implemented
 
-- Save-to-history button or automatic save.
+- Automatic save.
 - Version history UI, versions list API, restore API, or share links.
 - Admin UI.
 - Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
