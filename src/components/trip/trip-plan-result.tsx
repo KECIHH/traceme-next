@@ -21,6 +21,7 @@ type TripPlanResultProps = {
   tripPlan: TripPlan;
   showDebugJson?: boolean;
   showSaveAction?: boolean;
+  showResultActions?: boolean;
 };
 
 const paceLabels: Record<Pace, string> = {
@@ -298,6 +299,7 @@ export function TripPlanResult({
   tripPlan,
   showDebugJson = true,
   showSaveAction = false,
+  showResultActions = true,
 }: TripPlanResultProps) {
   const {
     input,
@@ -331,7 +333,9 @@ export function TripPlanResult({
         </p>
       </SectionCard>
 
-      <ResultActions tripPlan={tripPlan} showSaveAction={showSaveAction} />
+      {showResultActions ? (
+        <ResultActions tripPlan={tripPlan} showSaveAction={showSaveAction} />
+      ) : null}
 
       <SectionCard title="基本信息" description="本区块来自本次提交的旅行输入。">
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

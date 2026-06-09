@@ -62,21 +62,35 @@ export type TripPlanRecordSummary = {
   updatedAt: string;
 };
 
-type VersionSummary = {
+type VersionSummaryForApi = {
   id: string;
   versionNumber: number;
+  sourceProvider: TripPlan["source"]["provider"];
+  sourceKind: TripPlan["source"]["kind"];
+  generationMode: TripPlan["generationMode"];
+  generatedAt: string;
+  createdAt: string;
+};
+
+type SafeVersionSummary = {
+  id: string;
+  versionNumber: number;
+  source: TripPlan["source"];
+  generationMode: TripPlan["generationMode"];
   generatedAt: string;
   createdAt: string;
 };
 
 type VersionDetail = {
   versionNumber: number;
+  source: TripPlan["source"];
+  generationMode: TripPlan["generationMode"];
   generatedAt: string;
   createdAt: string;
   tripPlan: TripPlan;
 };
 
-type VersionDetailWithId = VersionSummary & {
+type VersionDetailWithId = SafeVersionSummary & {
   tripPlan: TripPlan;
 };
 
@@ -127,7 +141,7 @@ export type ListTripPlanVersionsApiDependencies = {
   listTripPlanVersionsForRecord(input: {
     userId: string;
     tripPlanRecordId: string;
-  }): Promise<VersionSummary[]>;
+  }): Promise<VersionSummaryForApi[]>;
 };
 
 export type GetTripPlanVersionDetailApiDependencies = {
@@ -242,10 +256,15 @@ function summarizeRecord(record: TripPlanRecordForApi): TripPlanRecordSummary {
   };
 }
 
-function summarizeVersion(version: VersionSummary): VersionSummary {
+function summarizeVersion(version: VersionSummaryForApi): SafeVersionSummary {
   return {
     id: version.id,
     versionNumber: version.versionNumber,
+    source: {
+      provider: version.sourceProvider,
+      kind: version.sourceKind,
+    },
+    generationMode: version.generationMode,
     generatedAt: version.generatedAt,
     createdAt: version.createdAt,
   };
@@ -254,6 +273,11 @@ function summarizeVersion(version: VersionSummary): VersionSummary {
 function detailVersion(version: TripPlanVersionForApi): VersionDetail {
   return {
     versionNumber: version.versionNumber,
+    source: {
+      provider: version.sourceProvider,
+      kind: version.sourceKind,
+    },
+    generationMode: version.generationMode,
     generatedAt: version.generatedAt,
     createdAt: version.createdAt,
     tripPlan: version.tripPlanSnapshot,

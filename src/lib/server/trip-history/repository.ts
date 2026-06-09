@@ -59,6 +59,9 @@ type TripPlanVersionDbRow = {
 type TripPlanVersionSummaryDbRow = {
   id: string;
   version_number: number;
+  source_provider: TripPlan["source"]["provider"];
+  source_kind: TripPlan["source"]["kind"];
+  generation_mode: TripPlan["generationMode"];
   generated_at: string | Date;
   created_at: string | Date;
 };
@@ -106,6 +109,9 @@ export type TripPlanVersion = {
 export type TripPlanVersionSummary = {
   id: string;
   versionNumber: number;
+  sourceProvider: TripPlan["source"]["provider"];
+  sourceKind: TripPlan["source"]["kind"];
+  generationMode: TripPlan["generationMode"];
   generatedAt: string;
   createdAt: string;
 };
@@ -268,6 +274,9 @@ function mapTripPlanVersionSummary(
   return {
     id: row.id,
     versionNumber: row.version_number,
+    sourceProvider: row.source_provider,
+    sourceKind: row.source_kind,
+    generationMode: row.generation_mode,
     generatedAt: toDateTime(row.generated_at) ?? "",
     createdAt: toDateTime(row.created_at) ?? "",
   };
@@ -624,6 +633,9 @@ export async function listTripPlanVersionsForRecord(
       SELECT
         versions.id,
         versions.version_number,
+        versions.source_provider,
+        versions.source_kind,
+        versions.generation_mode,
         versions.generated_at,
         versions.created_at
       FROM trip_plan_records records

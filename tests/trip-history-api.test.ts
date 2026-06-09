@@ -44,6 +44,21 @@ const otherUserId = "223e4567-e89b-42d3-a456-426614174000";
 const recordId = "323e4567-e89b-42d3-a456-426614174000";
 const versionId = "423e4567-e89b-42d3-a456-426614174000";
 const secondVersionId = "523e4567-e89b-42d3-a456-426614174000";
+const versionSummarySource = {
+  provider: "mock",
+  kind: "mock",
+} as const;
+const versionSummaryGenerationMode = "quick";
+
+type ApiVersionSummaryFixture = {
+  id: string;
+  versionNumber: number;
+  sourceProvider: typeof versionSummarySource.provider;
+  sourceKind: typeof versionSummarySource.kind;
+  generationMode: typeof versionSummaryGenerationMode;
+  generatedAt: string;
+  createdAt: string;
+};
 
 const validRequest: GenerateTripPlanRequest = GenerateTripPlanRequestSchema.parse({
   departureCity: "Shanghai",
@@ -124,10 +139,15 @@ function buildApiVersion(
   };
 }
 
-function buildApiVersionSummary(overrides: Record<string, unknown> = {}) {
+function buildApiVersionSummary(
+  overrides: Partial<ApiVersionSummaryFixture> = {},
+): ApiVersionSummaryFixture {
   return {
     id: versionId,
     versionNumber: 1,
+    sourceProvider: versionSummarySource.provider,
+    sourceKind: versionSummarySource.kind,
+    generationMode: versionSummaryGenerationMode,
     generatedAt: "2026-06-09T00:00:00.000Z",
     createdAt: "2026-06-09T00:00:01.000Z",
     ...overrides,
@@ -485,6 +505,13 @@ test("versions list API returns only safe summaries for the current user's recor
   );
   assert.equal("tripPlan" in (json.data.versions[0] ?? {}), false);
   assert.equal("tripPlanSnapshot" in (json.data.versions[0] ?? {}), false);
+  assert.deepEqual(json.data.versions[0]?.source, versionSummarySource);
+  assert.equal(
+    json.data.versions[0]?.generationMode,
+    versionSummaryGenerationMode,
+  );
+  assert.equal("sourceProvider" in (json.data.versions[0] ?? {}), false);
+  assert.equal("sourceKind" in (json.data.versions[0] ?? {}), false);
   assertNoSensitiveOrInternalFields(json);
 });
 
@@ -541,8 +568,12 @@ test("version detail API scopes reads to the current user and returns the snapsh
   ]);
   assert.equal(json.data.version.id, versionId);
   assert.equal(json.data.version.versionNumber, 1);
+  assert.deepEqual(json.data.version.source, tripPlan.source);
+  assert.equal(json.data.version.generationMode, tripPlan.generationMode);
   assert.deepEqual(json.data.version.tripPlan, tripPlan);
   assert.equal("tripPlanSnapshot" in json.data.version, false);
+  assert.equal("sourceProvider" in json.data.version, false);
+  assert.equal("sourceKind" in json.data.version, false);
   assertNoSensitiveOrInternalFields({
     ...json,
     data: {
@@ -662,6 +693,8 @@ test("append version API scopes record ownership and returns a safe version summ
   ]);
   assert.equal(json.data.version.id, secondVersionId);
   assert.equal(json.data.version.versionNumber, 2);
+  assert.deepEqual(json.data.version.source, tripPlan.source);
+  assert.equal(json.data.version.generationMode, tripPlan.generationMode);
   assert.equal("tripPlan" in json.data.version, false);
   assertNoSensitiveOrInternalFields(json);
 });
@@ -756,6 +789,8 @@ test("restore API creates a new current version from an existing snapshot", asyn
   assert.notEqual(json.data.currentVersion.id, targetVersion.id);
   assert.equal(json.data.currentVersion.id, secondVersionId);
   assert.equal(json.data.currentVersion.versionNumber, 2);
+  assert.deepEqual(json.data.currentVersion.source, tripPlan.source);
+  assert.equal(json.data.currentVersion.generationMode, tripPlan.generationMode);
   assert.equal("tripPlan" in json.data.currentVersion, false);
   assertNoSensitiveOrInternalFields(json);
 });
@@ -1149,12 +1184,18 @@ test("versions list repository reads only summary fields and omits snapshots", a
           {
             id: secondVersionId,
             version_number: 2,
+            source_provider: versionSummarySource.provider,
+            source_kind: versionSummarySource.kind,
+            generation_mode: versionSummaryGenerationMode,
             generated_at: "2026-06-09T00:00:02.000Z",
             created_at: "2026-06-09T00:00:03.000Z",
           },
           {
             id: versionId,
             version_number: 1,
+            source_provider: versionSummarySource.provider,
+            source_kind: versionSummarySource.kind,
+            generation_mode: versionSummaryGenerationMode,
             generated_at: "2026-06-09T00:00:00.000Z",
             created_at: "2026-06-09T00:00:01.000Z",
           },
@@ -1177,12 +1218,18 @@ test("versions list repository reads only summary fields and omits snapshots", a
     {
       id: secondVersionId,
       versionNumber: 2,
+      sourceProvider: versionSummarySource.provider,
+      sourceKind: versionSummarySource.kind,
+      generationMode: versionSummaryGenerationMode,
       generatedAt: "2026-06-09T00:00:02.000Z",
       createdAt: "2026-06-09T00:00:03.000Z",
     },
     {
       id: versionId,
       versionNumber: 1,
+      sourceProvider: versionSummarySource.provider,
+      sourceKind: versionSummarySource.kind,
+      generationMode: versionSummaryGenerationMode,
       generatedAt: "2026-06-09T00:00:00.000Z",
       createdAt: "2026-06-09T00:00:01.000Z",
     },

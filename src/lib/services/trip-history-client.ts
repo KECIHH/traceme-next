@@ -53,10 +53,25 @@ export type SavedTripPlanDetail = {
   record: SavedTripPlanSummary;
   currentVersion: {
     versionNumber: number;
+    source: TripPlanSource;
+    generationMode: z.infer<typeof GenerationModeSchema>;
     generatedAt: string;
     createdAt: string;
     tripPlan: TripPlan;
   };
+};
+
+export type SavedTripPlanVersionSummary = {
+  id: string;
+  versionNumber: number;
+  source: TripPlanSource;
+  generationMode: z.infer<typeof GenerationModeSchema>;
+  generatedAt: string;
+  createdAt: string;
+};
+
+export type SavedTripPlanVersionDetail = SavedTripPlanVersionSummary & {
+  tripPlan: TripPlan;
 };
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -98,11 +113,59 @@ const DetailSuccessResponseSchema = z
         currentVersion: z
           .object({
             versionNumber: z.number().int().positive(),
+            source: TripPlanSourceSchema,
+            generationMode: GenerationModeSchema,
             generatedAt: z.string().min(1),
             createdAt: z.string().min(1),
             tripPlan: TripPlanSchema,
           })
           .strip(),
+      })
+      .strip(),
+  })
+  .strip();
+
+const ApiVersionSummarySchema = z
+  .object({
+    id: z.string().min(1),
+    versionNumber: z.number().int().positive(),
+    source: TripPlanSourceSchema,
+    generationMode: GenerationModeSchema,
+    generatedAt: z.string().min(1),
+    createdAt: z.string().min(1),
+  })
+  .strip();
+
+const VersionsListSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        versions: z.array(ApiVersionSummarySchema),
+      })
+      .strip(),
+  })
+  .strip();
+
+const VersionDetailSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        version: ApiVersionSummarySchema.extend({
+          tripPlan: TripPlanSchema,
+        }).strip(),
+      })
+      .strip(),
+  })
+  .strip();
+
+const RestoreSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        currentVersion: ApiVersionSummarySchema,
       })
       .strip(),
   })
@@ -176,6 +239,36 @@ async function getJson(path: string, fetcher: FetchLike) {
       headers: {
         Accept: "application/json",
       },
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false as const,
+      error: {
+        kind: "network_error" as const,
+        message: toErrorMessage("network_error"),
+      },
+    };
+  }
+
+  return {
+    ok: true as const,
+    response,
+    json: await readJsonSafely(response),
+  };
+}
+
+async function postJson(path: string, body: unknown, fetcher: FetchLike) {
+  let response: Response;
+
+  try {
+    response = await fetcher(path, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
       cache: "no-store",
     });
   } catch {
@@ -280,6 +373,102 @@ export async function getSavedTripPlanDetail(
         record: toSavedTripPlanSummary(validationResult.data.data.record),
         currentVersion: validationResult.data.data.currentVersion,
       },
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function listTripPlanVersionsClient(
+  id: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ versions: SavedTripPlanVersionSummary[] }>> {
+  const requestResult = await getJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/versions`,
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = VersionsListSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function getTripPlanVersionClient(
+  id: string,
+  versionId: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<SavedTripPlanVersionDetail>> {
+  const requestResult = await getJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}`,
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = VersionDetailSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data.version,
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function restoreTripPlanVersionClient(
+  id: string,
+  versionId: string,
+  fetcher: FetchLike = fetch,
+): Promise<
+  TripHistoryClientResult<{ currentVersion: SavedTripPlanVersionSummary }>
+> {
+  const requestResult = await postJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/restore`,
+    { versionId },
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = RestoreSuccessResponseSchema.safeParse(requestResult.json);
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
     };
   }
 

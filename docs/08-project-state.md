@@ -1,3 +1,37 @@
+# Project State - MVP Round 29
+## Round 29 Current State
+- Round 29 adds the minimum version-history UI entry on `/trips/[id]` without adding diff, share, admin, maps, weather, or search features.
+- The trip detail page keeps showing the current saved `TripPlan` snapshot with the existing copy full text, download Markdown, and browser print/save PDF actions.
+- Added a “版本历史” panel that loads `GET /api/travel-plans/[id]/versions`, shows version number, created time, generated time, safe source summary, and current-version status.
+- Added historical version preview through `GET /api/travel-plans/[id]/versions/[versionId]`; preview is explicitly labeled as a historical snapshot and does not replace the current detail view.
+- Added restore UI through `POST /api/travel-plans/[id]/restore`; restore requires a confirmation action, explains that restore creates a new version without overwriting old versions, and refreshes detail plus version list after success.
+- Added front-end client wrappers: `listTripPlanVersionsClient`, `getTripPlanVersionClient`, and `restoreTripPlanVersionClient`.
+- Added a pure version-history view adapter for current-version labels, historical preview text, restore confirmation copy, and restore feedback.
+- Safe version summary responses now include `source` and `generationMode` for UI source summaries while continuing to omit owner ids, record ids, raw snapshot fields in summaries, restore metadata, notes, SQL, stack traces, connection strings, tokens, secrets, API keys, bearer values, and authorization headers.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+
+## Round 29 Boundaries
+- No share link, admin UI, complex diff, map, weather, or search capability was added.
+- No client-side database access was added; the UI only calls the protected versions/detail/restore APIs.
+- No internal `userId`, `DATABASE_URL`, auth secret, OAuth secret, API key, bearer token, authorization header value, SQL, stack trace, restore metadata, or raw version snapshot summary is intentionally exposed.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 29 Verification
+- `npm test`: passed, 67 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/trips/[id]` plus protected `/api/travel-plans/[id]/versions`, `/api/travel-plans/[id]/versions/[versionId]`, and `/api/travel-plans/[id]/restore` routes without share/admin routes.
+- `npx tsc --noEmit`: passed.
+- Automated tests cover versions client `401`, `404`, and `500` mapping.
+- Automated tests cover version list/detail/restore success adaptation, restore request body `{ versionId }`, and stripping of internal fields.
+- Automated tests cover safe UI adapter labels, historical preview copy, restore confirmation/success wording, and sensitive/internal text exclusion.
+- Local HTTP smoke against the existing dev server at `http://localhost:3152` returned HTTP `200` for `/trips/[id]`; unauthenticated versions list and restore API calls returned HTTP `401` with no `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, stack, bearer, or authorization details in the response body.
+- In-app browser navigation to localhost was blocked by the browser side with `ERR_BLOCKED_BY_CLIENT`, so logged-in browser acceptance for list/preview/restore was not completed in this environment. Full browser acceptance still requires an authenticated local session with saved trip data.
+
+## Round 29 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 29
+
 # Project State - MVP Round 28
 ## Round 28 Current State
 - Round 28 adds the protected version-history API minimum loop without adding version-history UI.
