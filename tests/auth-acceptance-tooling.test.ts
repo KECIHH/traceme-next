@@ -93,6 +93,15 @@ test("auth database summary script does not select sensitive auth columns", asyn
   }
 });
 
+test("database acceptance tooling includes share links in required table status", async () => {
+  const migrationScript = await readFile(dbMigrateScript, "utf8");
+  const summaryScript = await readFile(dbSummaryScript, "utf8");
+
+  for (const source of [migrationScript, summaryScript]) {
+    assert.match(source, /"trip_plan_shares"/);
+  }
+});
+
 test("package exposes safe auth acceptance scripts", async () => {
   const packageJson = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8")) as {
     scripts: Record<string, string>;

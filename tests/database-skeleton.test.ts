@@ -30,6 +30,12 @@ const authMigrationPath = path.join(
   "migrations",
   "0002_auth_session_boundary.sql",
 );
+const shareMigrationPath = path.join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "0003_trip_plan_shares.sql",
+);
 
 const validRequest: GenerateTripPlanRequest = GenerateTripPlanRequestSchema.parse({
   departureCity: "Shanghai",
@@ -112,6 +118,35 @@ test("auth migration declares session boundary tables without replacing users", 
   assert.doesNotMatch(sql, /DROP TABLE users/i);
   assert.doesNotMatch(sql, /CREATE TABLE users/i);
   assert.doesNotMatch(sql, /password_hash/i);
+});
+
+test("share migration declares hash-only fixed-version share links", async () => {
+  const sql = await readFile(shareMigrationPath, "utf8");
+
+  assert.match(sql, /CREATE TABLE trip_plan_shares/i);
+
+  for (const requiredFragment of [
+    "owner_user_id uuid NOT NULL REFERENCES users\\(id\\) ON DELETE RESTRICT",
+    "trip_plan_record_id uuid NOT NULL REFERENCES trip_plan_records\\(id\\) ON DELETE CASCADE",
+    "version_id uuid NOT NULL REFERENCES trip_plan_versions\\(id\\) ON DELETE CASCADE",
+    "token_hash text NOT NULL UNIQUE",
+    "token_preview text NOT NULL",
+    "status text NOT NULL DEFAULT 'active' CHECK \\(status IN \\('active', 'revoked'\\)\\)",
+    "expires_at timestamptz",
+    "revoked_at timestamptz",
+    "last_accessed_at timestamptz",
+    "access_count integer NOT NULL DEFAULT 0 CHECK \\(access_count >= 0\\)",
+    "trip_plan_shares_owner_record_created_at_idx",
+    "trip_plan_shares_owner_record_status_idx",
+    "trip_plan_shares_active_token_hash_idx",
+    "trip_plan_shares_version_id_idx",
+  ]) {
+    assert.match(sql, new RegExp(requiredFragment, "i"));
+  }
+
+  assert.doesNotMatch(sql, /token text/i);
+  assert.doesNotMatch(sql, /raw_token/i);
+  assert.doesNotMatch(sql, /share_token text/i);
 });
 
 test("trip plan persistence helpers validate user ids and version numbers", () => {

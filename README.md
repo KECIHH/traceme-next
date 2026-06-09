@@ -195,7 +195,7 @@ Manual acceptance checks:
 - Unauthenticated `GET /api/account/me` must return `401`.
 - After a real OAuth login, `GET /api/account/me` must return only `id`, `email`, `name`, and `image`.
 - Responses and logs must not include provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or database connection strings.
-- Saved history UI, version history UI, admin UI, restore/version/share APIs, and any history page entry remain unavailable.
+- Saved history UI, version history UI, admin UI, restore/version APIs, share UI/pages, and any history page entry remain unavailable at this auth-boundary checkpoint.
 
 ## Saved History API Boundary
 
@@ -232,6 +232,15 @@ Round 28 adds protected server-side version history APIs only:
 
 All four APIs require `requireCurrentUser()`. Missing, invalid, soft-deleted, or cross-owner records and versions return `404`. Version summaries do not expose full snapshots; only the version detail API returns a `TripPlan`. This round still does not add version history UI, restore UI/buttons, share links, admin UI, or client-side database access. `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` remain unchanged.
 
+Round 31 adds the minimum server-side share-link API loop:
+
+- `POST /api/travel-plans/[id]/share-links` creates one active fixed-version share link for the current user's saved record and returns the raw token/share URL only once.
+- `GET /api/travel-plans/[id]/share-links` lists safe share summaries for the current user's saved record without raw tokens or token hashes.
+- `PATCH /api/travel-plans/[id]/share-links/[shareId]` revokes the current user's share link with a soft revoke.
+- `GET /api/shared/trips/[token]` returns a public read-only `TripPlan` snapshot for a valid active non-expired token.
+
+Share tokens are generated server-side and only `token_hash` plus a short `token_preview` are stored. Revoked, expired, missing, invalid, deleted-record, or cross-boundary shares return `404`. Public responses do not expose owner ids, email, token hashes, internal record fields, provider/session tokens, OAuth secrets, database connection strings, API keys, bearer tokens, authorization headers, SQL, or stack traces. This round still does not add share UI, a public share page, admin UI, complex permissions, or client-side database access. `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, and restore behavior remain unchanged.
+
 ## Smoke Test
 
 部署后可运行：
@@ -262,7 +271,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 ## Current Not Implemented
 
 - Automatic save.
-- Version history UI, restore UI/buttons, or share links.
+- Version history UI, restore UI/buttons, share UI, or public share pages.
 - Admin UI.
 - Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
 - Automatic save.

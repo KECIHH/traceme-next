@@ -24,6 +24,7 @@ const TABLES = [
   "verification_token",
   "trip_plan_records",
   "trip_plan_versions",
+  "trip_plan_shares",
   "schema_migrations",
 ];
 

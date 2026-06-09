@@ -1,6 +1,7 @@
 import type { CurrentUser } from "@/lib/account/current-user-summary";
 import { AuthenticationRequiredError } from "@/lib/server/auth/errors";
 import { TripPlanSchema, type TripPlan } from "@/lib/schemas/trip";
+import { isShareToken } from "@/lib/trip-history/share-tokens";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -94,6 +95,54 @@ type VersionDetailWithId = SafeVersionSummary & {
   tripPlan: TripPlan;
 };
 
+type TripPlanShareForApi = {
+  id: string;
+  ownerUserId: string;
+  tripPlanRecordId: string;
+  versionId: string;
+  tokenPreview: string;
+  status: "active" | "revoked";
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+};
+
+type SafeShareSummary = {
+  id: string;
+  tokenPreview: string;
+  status: "active" | "revoked";
+  versionId: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+};
+
+type PublicSharedTripForApi = {
+  share: TripPlanShareForApi;
+  version: VersionSummaryForApi;
+  tripPlan: TripPlan;
+};
+
+type PublicVersionSummary = {
+  versionNumber: number;
+  source: TripPlan["source"];
+  generationMode: TripPlan["generationMode"];
+  generatedAt: string;
+  createdAt: string;
+};
+
+type PublicShareSummary = {
+  sharedAt: string;
+  expiresAt: string | null;
+  version: PublicVersionSummary;
+};
+
 type SaveRequestBody = {
   tripPlan?: unknown;
 };
@@ -102,6 +151,14 @@ type AppendVersionRequestBody = SaveRequestBody;
 
 type RestoreVersionRequestBody = {
   versionId?: unknown;
+};
+
+type CreateShareLinkRequestBody = {
+  expiresAt?: unknown;
+};
+
+type RevokeShareLinkRequestBody = {
+  status?: unknown;
 };
 
 type RequireCurrentUser = () => Promise<CurrentUser>;
@@ -181,6 +238,41 @@ export type RestoreTripPlanVersionApiDependencies = {
   }): Promise<TripPlanVersionForApi>;
 };
 
+export type CreateTripPlanShareLinkApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  createTripPlanShareLink(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    expiresAt?: string | null;
+  }): Promise<{
+    share: TripPlanShareForApi;
+    token: string;
+  } | null>;
+};
+
+export type ListTripPlanShareLinksApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  listTripPlanShareLinks(input: {
+    userId: string;
+    tripPlanRecordId: string;
+  }): Promise<TripPlanShareForApi[] | null>;
+};
+
+export type RevokeTripPlanShareLinkApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  revokeTripPlanShareLink(input: {
+    userId: string;
+    tripPlanRecordId: string;
+    shareId: string;
+  }): Promise<TripPlanShareForApi | null>;
+};
+
+export type GetPublicSharedTripApiDependencies = {
+  getPublicSharedTripByToken(input: {
+    token: string;
+  }): Promise<PublicSharedTripForApi | null>;
+};
+
 function createRequestId() {
   return crypto.randomUUID();
 }
@@ -214,6 +306,10 @@ function badRequestResponse(requestId: string) {
 
 function notFoundResponse(requestId: string) {
   return errorResponse("NOT_FOUND", "Trip plan was not found.", requestId, 404);
+}
+
+function shareNotFoundResponse(requestId: string) {
+  return errorResponse("NOT_FOUND", "Share link was not found.", requestId, 404);
 }
 
 function internalErrorResponse(requestId: string) {
@@ -291,8 +387,64 @@ function detailVersionWithId(version: TripPlanVersionForApi): VersionDetailWithI
   };
 }
 
+function summarizeShare(share: TripPlanShareForApi): SafeShareSummary {
+  return {
+    id: share.id,
+    tokenPreview: share.tokenPreview,
+    status: share.status,
+    versionId: share.versionId,
+    expiresAt: share.expiresAt,
+    revokedAt: share.revokedAt,
+    createdAt: share.createdAt,
+    updatedAt: share.updatedAt,
+    lastAccessedAt: share.lastAccessedAt,
+    accessCount: share.accessCount,
+  };
+}
+
+function summarizePublicShare(sharedTrip: PublicSharedTripForApi): PublicShareSummary {
+  return {
+    sharedAt: sharedTrip.share.createdAt,
+    expiresAt: sharedTrip.share.expiresAt,
+    version: {
+      versionNumber: sharedTrip.version.versionNumber,
+      source: {
+        provider: sharedTrip.version.sourceProvider,
+        kind: sharedTrip.version.sourceKind,
+      },
+      generationMode: sharedTrip.version.generationMode,
+      generatedAt: sharedTrip.version.generatedAt,
+      createdAt: sharedTrip.version.createdAt,
+    },
+  };
+}
+
 function isUuid(value: string) {
   return UUID_PATTERN.test(value);
+}
+
+function normalizeExpiresAt(value: unknown) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return undefined;
+  }
+
+  const timestamp = Date.parse(value);
+
+  if (Number.isNaN(timestamp)) {
+    return undefined;
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
+function buildShareUrl(request: Request, token: string) {
+  const requestUrl = new URL(request.url);
+
+  return new URL(`/shared/trips/${encodeURIComponent(token)}`, requestUrl.origin).toString();
 }
 
 async function requireUserOrResponse(
@@ -685,6 +837,209 @@ export async function handleRestoreTripPlanVersionRequest(
     });
   } catch (error) {
     logInternalApiError("versions.restore", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleCreateTripPlanShareLinkRequest(
+  request: Request,
+  id: string,
+  dependencies: CreateTripPlanShareLinkApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("shares.create.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return shareNotFoundResponse(requestId);
+  }
+
+  let body: CreateShareLinkRequestBody = {};
+
+  try {
+    const rawBody = await request.text();
+    body = rawBody.trim() === "" ? {} : (JSON.parse(rawBody) as CreateShareLinkRequestBody);
+  } catch {
+    return errorResponse("BAD_REQUEST", "Request body must be valid JSON.", requestId, 400);
+  }
+
+  const expiresAt = normalizeExpiresAt(body?.expiresAt);
+
+  if (expiresAt === undefined) {
+    return badRequestResponse(requestId);
+  }
+
+  try {
+    const shareLink = await dependencies.createTripPlanShareLink({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+      expiresAt,
+    });
+
+    if (shareLink === null) {
+      return shareNotFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        share: summarizeShare(shareLink.share),
+        token: shareLink.token,
+        shareUrl: buildShareUrl(request, shareLink.token),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("shares.create", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleListTripPlanShareLinksRequest(
+  id: string,
+  dependencies: ListTripPlanShareLinksApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("shares.list.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return shareNotFoundResponse(requestId);
+  }
+
+  try {
+    const shares = await dependencies.listTripPlanShareLinks({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+    });
+
+    if (shares === null) {
+      return shareNotFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        shares: shares.map(summarizeShare),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("shares.list", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleRevokeTripPlanShareLinkRequest(
+  request: Request,
+  id: string,
+  shareId: string,
+  dependencies: RevokeTripPlanShareLinkApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("shares.revoke.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id) || !isUuid(shareId)) {
+    return shareNotFoundResponse(requestId);
+  }
+
+  let body: RevokeShareLinkRequestBody = {};
+
+  try {
+    const rawBody = await request.text();
+    body = rawBody.trim() === "" ? {} : (JSON.parse(rawBody) as RevokeShareLinkRequestBody);
+  } catch {
+    return errorResponse("BAD_REQUEST", "Request body must be valid JSON.", requestId, 400);
+  }
+
+  if (body.status !== undefined && body.status !== "revoked") {
+    return badRequestResponse(requestId);
+  }
+
+  try {
+    const share = await dependencies.revokeTripPlanShareLink({
+      userId: currentUser.id,
+      tripPlanRecordId: id,
+      shareId,
+    });
+
+    if (share === null) {
+      return shareNotFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        share: summarizeShare(share),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("shares.revoke", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleGetPublicSharedTripRequest(
+  token: string,
+  dependencies: GetPublicSharedTripApiDependencies,
+) {
+  const requestId = createRequestId();
+
+  if (!isShareToken(token)) {
+    return shareNotFoundResponse(requestId);
+  }
+
+  try {
+    const sharedTrip = await dependencies.getPublicSharedTripByToken({ token });
+
+    if (sharedTrip === null) {
+      return shareNotFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        tripPlan: sharedTrip.tripPlan,
+        share: summarizePublicShare(sharedTrip),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("shares.public", requestId, error);
     return internalErrorResponse(requestId);
   }
 }

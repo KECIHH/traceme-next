@@ -10,22 +10,35 @@ import { generateMockTripPlanJson } from "@/lib/ai/mock-provider";
 import type { CurrentUser } from "@/lib/account/current-user-summary";
 import { AuthenticationRequiredError } from "@/lib/server/auth/errors";
 import {
+  createTripPlanShareLink,
   createTripPlanRecordWithInitialVersion,
   createTripPlanVersion,
+  getPublicSharedTripByToken,
   getTripPlanVersionById,
   listTripPlanVersionsForRecord,
 } from "@/lib/server/trip-history/repository";
 import {
+  handleCreateTripPlanShareLinkRequest,
+  handleGetPublicSharedTripRequest,
   handleAppendTripPlanVersionRequest,
   handleGetTripPlanDetailRequest,
   handleGetTripPlanVersionDetailRequest,
   handleListTripPlansRequest,
+  handleListTripPlanShareLinksRequest,
   handleListTripPlanVersionsRequest,
+  handleRevokeTripPlanShareLinkRequest,
   handleRestoreTripPlanVersionRequest,
   handleSaveTripPlanRequest,
   type TripPlanRecordForApi,
   type TripPlanVersionForApi,
 } from "@/lib/trip-history/api";
+import {
+  ShareTokenValidationError,
+  assertShareToken,
+  buildShareTokenPreview,
+  generateShareToken,
+  hashShareToken,
+} from "@/lib/trip-history/share-tokens";
 import {
   GenerateTripPlanRequestSchema,
   TripPlanSchema,
@@ -44,6 +57,8 @@ const otherUserId = "223e4567-e89b-42d3-a456-426614174000";
 const recordId = "323e4567-e89b-42d3-a456-426614174000";
 const versionId = "423e4567-e89b-42d3-a456-426614174000";
 const secondVersionId = "523e4567-e89b-42d3-a456-426614174000";
+const shareId = "723e4567-e89b-42d3-a456-426614174000";
+const validShareToken = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const versionSummarySource = {
   provider: "mock",
   kind: "mock",
@@ -58,6 +73,21 @@ type ApiVersionSummaryFixture = {
   generationMode: typeof versionSummaryGenerationMode;
   generatedAt: string;
   createdAt: string;
+};
+
+type ApiShareFixture = {
+  id: string;
+  ownerUserId: string;
+  tripPlanRecordId: string;
+  versionId: string;
+  tokenPreview: string;
+  status: "active" | "revoked";
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
 };
 
 const validRequest: GenerateTripPlanRequest = GenerateTripPlanRequestSchema.parse({
@@ -154,6 +184,24 @@ function buildApiVersionSummary(
   };
 }
 
+function buildApiShare(overrides: Partial<ApiShareFixture> = {}): ApiShareFixture {
+  return {
+    id: shareId,
+    ownerUserId: currentUser.id,
+    tripPlanRecordId: recordId,
+    versionId,
+    tokenPreview: validShareToken.slice(-8),
+    status: "active",
+    expiresAt: null,
+    revokedAt: null,
+    createdAt: "2026-06-09T00:00:01.000Z",
+    updatedAt: "2026-06-09T00:00:01.000Z",
+    lastAccessedAt: null,
+    accessCount: 0,
+    ...overrides,
+  };
+}
+
 function buildSaveRequest(body: unknown) {
   return new Request("http://localhost/api/travel-plans/save", {
     method: "POST",
@@ -182,6 +230,29 @@ function buildRestoreVersionRequest(body: unknown) {
     },
     body: JSON.stringify(body),
   });
+}
+
+function buildCreateShareRequest(body: unknown = {}) {
+  return new Request(`http://localhost/api/travel-plans/${recordId}/share-links`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function buildRevokeShareRequest(body: unknown = {}) {
+  return new Request(
+    `http://localhost/api/travel-plans/${recordId}/share-links/${shareId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 function assertNoSensitiveOrInternalFields(value: unknown) {
@@ -862,6 +933,306 @@ test("restore API returns 404 for missing or cross-owner versions", async () => 
   assert.equal(writeCount, 0);
 });
 
+test("share token hashing is stable and does not equal the raw token", () => {
+  const token = generateShareToken();
+  const hash = hashShareToken(token);
+
+  assert.equal(assertShareToken(token), token);
+  assert.equal(token.length, 43);
+  assert.equal(hash, hashShareToken(token));
+  assert.notEqual(hash, token);
+  assert.equal(hash.length, 64);
+  assert.equal(buildShareTokenPreview(token), token.slice(-8));
+  assert.throws(() => assertShareToken("not-a-valid-token"), ShareTokenValidationError);
+});
+
+test("share create/list/revoke owner APIs require login before repository access", async () => {
+  let createCount = 0;
+  let listCount = 0;
+  let revokeCount = 0;
+
+  const createResponse = await handleCreateTripPlanShareLinkRequest(
+    buildCreateShareRequest(),
+    recordId,
+    {
+      requireCurrentUser: requireUnauthenticatedUser,
+      async createTripPlanShareLink() {
+        createCount += 1;
+        throw new Error("should not create");
+      },
+    },
+  );
+  const listResponse = await handleListTripPlanShareLinksRequest(recordId, {
+    requireCurrentUser: requireUnauthenticatedUser,
+    async listTripPlanShareLinks() {
+      listCount += 1;
+      return [];
+    },
+  });
+  const revokeResponse = await handleRevokeTripPlanShareLinkRequest(
+    buildRevokeShareRequest({ status: "revoked" }),
+    recordId,
+    shareId,
+    {
+      requireCurrentUser: requireUnauthenticatedUser,
+      async revokeTripPlanShareLink() {
+        revokeCount += 1;
+        return null;
+      },
+    },
+  );
+
+  for (const response of [createResponse, listResponse, revokeResponse]) {
+    const json = (await response.json()) as {
+      ok: false;
+      error: {
+        code: string;
+      };
+    };
+
+    assert.equal(response.status, 401);
+    assert.equal(json.error.code, "UNAUTHORIZED");
+  }
+
+  assert.equal(createCount, 0);
+  assert.equal(listCount, 0);
+  assert.equal(revokeCount, 0);
+});
+
+test("share create API only creates owner-scoped links and returns the raw token once", async () => {
+  const createInputs: Array<{
+    userId: string;
+    tripPlanRecordId: string;
+    expiresAt?: string | null;
+  }> = [];
+  const expiresAt = "2026-07-01T00:00:00.000Z";
+  const response = await handleCreateTripPlanShareLinkRequest(
+    buildCreateShareRequest({ expiresAt }),
+    recordId,
+    {
+      requireCurrentUser: authenticatedUser,
+      async createTripPlanShareLink(input) {
+        createInputs.push(input);
+
+        return {
+          share: buildApiShare({ expiresAt: input.expiresAt ?? null }),
+          token: validShareToken,
+        };
+      },
+    },
+  );
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      share: Record<string, unknown>;
+      token: string;
+      shareUrl: string;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.deepEqual(createInputs, [
+    {
+      userId: currentUser.id,
+      tripPlanRecordId: recordId,
+      expiresAt,
+    },
+  ]);
+  assert.equal(json.data.token, validShareToken);
+  assert.equal(
+    json.data.shareUrl,
+    `http://localhost/shared/trips/${encodeURIComponent(validShareToken)}`,
+  );
+  assert.equal(json.data.share.id, shareId);
+  assert.equal(json.data.share.versionId, versionId);
+  assert.equal("tokenHash" in json.data.share, false);
+  assert.equal("token" in json.data.share, false);
+  assertNoSensitiveOrInternalFields(json.data.share);
+});
+
+test("share create API returns 404 for missing or cross-owner records", async () => {
+  const response = await handleCreateTripPlanShareLinkRequest(
+    buildCreateShareRequest(),
+    recordId,
+    {
+      requireCurrentUser: authenticatedUser,
+      async createTripPlanShareLink(input) {
+        assert.deepEqual(input, {
+          userId: currentUser.id,
+          tripPlanRecordId: recordId,
+          expiresAt: null,
+        });
+
+        return null;
+      },
+    },
+  );
+  const json = (await response.json()) as {
+    ok: false;
+    error: {
+      code: string;
+    };
+  };
+
+  assert.equal(response.status, 404);
+  assert.equal(json.error.code, "NOT_FOUND");
+});
+
+test("share list API omits raw tokens and token hashes", async () => {
+  const response = await handleListTripPlanShareLinksRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async listTripPlanShareLinks(input) {
+      assert.deepEqual(input, {
+        userId: currentUser.id,
+        tripPlanRecordId: recordId,
+      });
+
+      return [buildApiShare({ accessCount: 2 })];
+    },
+  });
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      shares: Array<Record<string, unknown>>;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.equal(json.data.shares.length, 1);
+  assert.equal(json.data.shares[0]?.tokenPreview, validShareToken.slice(-8));
+  assert.equal("token" in (json.data.shares[0] ?? {}), false);
+  assert.equal("tokenHash" in (json.data.shares[0] ?? {}), false);
+  assertNoSensitiveOrInternalFields(json);
+});
+
+test("share revoke API returns 404 for cross-user revoke and hides public tokens after revoke", async () => {
+  let revoked = false;
+  const revokeResponse = await handleRevokeTripPlanShareLinkRequest(
+    buildRevokeShareRequest({ status: "revoked" }),
+    recordId,
+    shareId,
+    {
+      requireCurrentUser: authenticatedUser,
+      async revokeTripPlanShareLink(input) {
+        assert.deepEqual(input, {
+          userId: currentUser.id,
+          tripPlanRecordId: recordId,
+          shareId,
+        });
+        revoked = true;
+
+        return buildApiShare({
+          status: "revoked",
+          revokedAt: "2026-06-09T00:05:00.000Z",
+          updatedAt: "2026-06-09T00:05:00.000Z",
+        });
+      },
+    },
+  );
+  const publicResponse = await handleGetPublicSharedTripRequest(validShareToken, {
+    async getPublicSharedTripByToken() {
+      return revoked ? null : null;
+    },
+  });
+  const crossUserResponse = await handleRevokeTripPlanShareLinkRequest(
+    buildRevokeShareRequest({ status: "revoked" }),
+    recordId,
+    shareId,
+    {
+      requireCurrentUser: authenticatedUser,
+      async revokeTripPlanShareLink() {
+        return null;
+      },
+    },
+  );
+  const revokeJson = (await revokeResponse.json()) as {
+    ok: true;
+    data: {
+      share: Record<string, unknown>;
+    };
+  };
+  const publicJson = (await publicResponse.json()) as {
+    ok: false;
+    error: {
+      code: string;
+    };
+  };
+  const crossUserJson = (await crossUserResponse.json()) as {
+    ok: false;
+    error: {
+      code: string;
+    };
+  };
+
+  assert.equal(revokeResponse.status, 200);
+  assert.equal(revokeJson.data.share.status, "revoked");
+  assert.equal(publicResponse.status, 404);
+  assert.equal(publicJson.error.code, "NOT_FOUND");
+  assert.equal(crossUserResponse.status, 404);
+  assert.equal(crossUserJson.error.code, "NOT_FOUND");
+});
+
+test("public share API returns TripPlan snapshots without owner or internal fields", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const response = await handleGetPublicSharedTripRequest(validShareToken, {
+    async getPublicSharedTripByToken(input) {
+      assert.deepEqual(input, { token: validShareToken });
+
+      return {
+        share: buildApiShare({ accessCount: 3 }),
+        version: buildApiVersionSummary(),
+        tripPlan,
+      };
+    },
+  });
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      tripPlan: TripPlan;
+      share: Record<string, unknown>;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.deepEqual(json.data.tripPlan, tripPlan);
+  assert.equal(json.data.share.sharedAt, "2026-06-09T00:00:01.000Z");
+  assert.equal("id" in json.data.share, false);
+  assert.equal("ownerUserId" in json.data.share, false);
+  assert.equal("tripPlanRecordId" in json.data.share, false);
+  assert.equal("tokenHash" in json.data.share, false);
+  assertNoSensitiveOrInternalFields(json);
+});
+
+test("public share API returns 404 for invalid, revoked, expired, or missing tokens", async () => {
+  const invalidResponse = await handleGetPublicSharedTripRequest("invalid-token", {
+    async getPublicSharedTripByToken() {
+      throw new Error("should not read invalid tokens");
+    },
+  });
+  const expiredResponse = await handleGetPublicSharedTripRequest(validShareToken, {
+    async getPublicSharedTripByToken(input) {
+      assert.deepEqual(input, { token: validShareToken });
+
+      return null;
+    },
+  });
+
+  for (const response of [invalidResponse, expiredResponse]) {
+    const json = (await response.json()) as {
+      ok: false;
+      error: {
+        code: string;
+      };
+    };
+
+    assert.equal(response.status, 404);
+    assert.equal(json.error.code, "NOT_FOUND");
+  }
+});
+
 test("initial save repository creates a record, version one, and current version pointer together", async () => {
   const tripPlan = await buildValidTripPlan();
   const queries: Array<{
@@ -1236,7 +1607,140 @@ test("versions list repository reads only summary fields and omits snapshots", a
   ]);
 });
 
-test("trip history routes require current user and no out-of-scope routes are added", async () => {
+test("share repository stores only token hashes and creates fixed-version links", async () => {
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const createdAt = "2026-06-09T00:00:01.000Z";
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/INSERT INTO trip_plan_shares/i.test(text)) {
+        return {
+          rows: [
+            {
+              id: shareId,
+              owner_user_id: currentUser.id,
+              trip_plan_record_id: recordId,
+              version_id: versionId,
+              token_preview: String(values?.[3] ?? ""),
+              status: "active",
+              expires_at: values?.[4] ?? null,
+              revoked_at: null,
+              created_at: createdAt,
+              updated_at: createdAt,
+              last_accessed_at: null,
+              access_count: 0,
+            },
+          ] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+  const expiresAt = "2026-07-01T00:00:00.000Z";
+  const result = await createTripPlanShareLink({
+    userId: currentUser.id,
+    tripPlanRecordId: recordId,
+    expiresAt,
+    db,
+  });
+
+  assert.notEqual(result, null);
+
+  if (result === null) {
+    throw new Error("Expected created share link.");
+  }
+
+  assert.equal(queries.length, 1);
+  assert.match(queries[0]?.text ?? "", /INNER JOIN trip_plan_versions versions/i);
+  assert.match(queries[0]?.text ?? "", /versions\.id = records\.current_version_id/i);
+  assert.match(queries[0]?.text ?? "", /records\.user_id = \$2/i);
+  assert.match(queries[0]?.text ?? "", /records\.deleted_at IS NULL/i);
+  assert.equal(queries[0]?.values?.[0], recordId);
+  assert.equal(queries[0]?.values?.[1], currentUser.id);
+  assert.equal(queries[0]?.values?.[2], hashShareToken(result.token));
+  assert.notEqual(queries[0]?.values?.[2], result.token);
+  assert.equal(queries[0]?.values?.[3], buildShareTokenPreview(result.token));
+  assert.equal(queries[0]?.values?.[4], expiresAt);
+  assert.equal(result.share.versionId, versionId);
+  assert.equal(result.share.tokenPreview, result.token.slice(-8));
+});
+
+test("public share repository hashes tokens, filters revoked or expired links, and records access", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/FROM trip_plan_shares shares/i.test(text)) {
+        return {
+          rows: [
+            {
+              id: shareId,
+              owner_user_id: currentUser.id,
+              trip_plan_record_id: recordId,
+              version_id: versionId,
+              token_preview: validShareToken.slice(-8),
+              status: "active",
+              expires_at: null,
+              revoked_at: null,
+              created_at: "2026-06-09T00:00:01.000Z",
+              updated_at: "2026-06-09T00:00:01.000Z",
+              last_accessed_at: null,
+              access_count: 0,
+              version_number: 1,
+              version_source_provider: tripPlan.source.provider,
+              version_source_kind: tripPlan.source.kind,
+              version_generation_mode: tripPlan.generationMode,
+              version_generated_at: tripPlan.generatedAt,
+              version_created_at: "2026-06-09T00:00:01.000Z",
+              trip_plan_snapshot: tripPlan,
+            },
+          ] as unknown as TRow[],
+        };
+      }
+
+      if (/UPDATE trip_plan_shares/i.test(text)) {
+        return {
+          rows: [] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+  const sharedTrip = await getPublicSharedTripByToken({
+    token: validShareToken,
+    db,
+  });
+
+  assert.notEqual(sharedTrip, null);
+  assert.equal(queries.length, 2);
+  assert.equal(queries[0]?.values?.[0], hashShareToken(validShareToken));
+  assert.notEqual(queries[0]?.values?.[0], validShareToken);
+  assert.match(queries[0]?.text ?? "", /shares\.status = 'active'/i);
+  assert.match(queries[0]?.text ?? "", /shares\.revoked_at IS NULL/i);
+  assert.match(queries[0]?.text ?? "", /shares\.expires_at IS NULL OR shares\.expires_at > now\(\)/i);
+  assert.match(queries[0]?.text ?? "", /records\.deleted_at IS NULL/i);
+  assert.match(queries[1]?.text ?? "", /access_count = access_count \+ 1/i);
+  assert.deepEqual(sharedTrip?.tripPlan, tripPlan);
+});
+
+test("trip history and share routes require current user without adding UI or admin routes", async () => {
   const repoRoot = process.cwd();
   const routePaths = [
     path.join(repoRoot, "src", "app", "api", "travel-plans", "route.ts"),
@@ -1255,6 +1759,27 @@ test("trip history routes require current user and no out-of-scope routes are ad
       "route.ts",
     ),
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "restore", "route.ts"),
+    path.join(
+      repoRoot,
+      "src",
+      "app",
+      "api",
+      "travel-plans",
+      "[id]",
+      "share-links",
+      "route.ts",
+    ),
+    path.join(
+      repoRoot,
+      "src",
+      "app",
+      "api",
+      "travel-plans",
+      "[id]",
+      "share-links",
+      "[shareId]",
+      "route.ts",
+    ),
   ];
 
   for (const routePath of routePaths) {
@@ -1264,11 +1789,18 @@ test("trip history routes require current user and no out-of-scope routes are ad
 
   for (const forbiddenPath of [
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "share"),
+    path.join(repoRoot, "src", "app", "shared"),
     path.join(repoRoot, "src", "app", "history"),
     path.join(repoRoot, "src", "app", "admin"),
   ]) {
     assert.equal(existsSync(forbiddenPath), false, forbiddenPath);
   }
+
+  const publicShareRoute = await readFile(
+    path.join(repoRoot, "src", "app", "api", "shared", "trips", "[token]", "route.ts"),
+    "utf8",
+  );
+  assert.doesNotMatch(publicShareRoute, /requireCurrentUser/);
 });
 
 test("trip history repository keeps list and detail queries owner-scoped and soft-delete aware", async () => {

@@ -1,3 +1,43 @@
+# Project State - MVP Round 31
+## Round 31 Current State
+- Round 31 implements the minimum server-side share-link API loop for saved travel plans.
+- Added `db/migrations/0003_trip_plan_shares.sql` with `trip_plan_shares` for owner-scoped fixed-version share links.
+- Share links bind to the record's current version at creation time; later restore or append actions do not change existing shared snapshots.
+- Added protected owner APIs:
+  - `POST /api/travel-plans/[id]/share-links`
+  - `GET /api/travel-plans/[id]/share-links`
+  - `PATCH /api/travel-plans/[id]/share-links/[shareId]`
+- Added public read-only API `GET /api/shared/trips/[token]`.
+- Share tokens are generated with server-side cryptographic randomness. Only `token_hash` and `token_preview` are stored; the raw token is returned only once from the create API.
+- List and revoke responses do not return raw tokens or token hashes.
+- Public lookup hashes the token before querying and returns `404 NOT_FOUND` for missing, invalid, revoked, expired, deleted-record, or otherwise unavailable shares.
+- Public responses return the `TripPlan` snapshot and minimal non-sensitive share/version metadata only.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+- Existing save, history, versions, and restore API behavior remains unchanged.
+
+## Round 31 Boundaries
+- No share UI was added.
+- No public share page was added.
+- No admin UI or complex permission backend was added.
+- No client-side database access was added.
+- No hard-delete share behavior was added; revoke is a soft state change.
+- No `.env` or `.env.local` content was added.
+- No real server IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, API key, bearer token, authorization header value, raw share token storage, SQL detail, stack trace, or provider secret was added to docs, tests, source, or output.
+
+## Round 31 Verification
+- `npm test`: passed, 79 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/api/shared/trips/[token]`, `/api/travel-plans/[id]/share-links`, and `/api/travel-plans/[id]/share-links/[shareId]` API routes without adding a public share page or share UI route.
+- `npx tsc --noEmit`: passed.
+- Automated tests cover owner auth requirement, owner-scoped create/list/revoke, one-time raw token return, hash-only storage, list redaction, revoke-to-404 behavior, expired/missing public-token 404 behavior, public snapshot response safety, cross-user revoke 404 behavior, token hashing stability, migration structure, and required-table tooling updates.
+- Not verified in this round: live PostgreSQL migration execution, because no real `DATABASE_URL` value was used or recorded.
+- Not verified in this round: browser acceptance, because no share UI or public share page exists by design.
+
+## Round 31 Record Time
+- Date: 2026-06-09 (Asia/Shanghai)
+- Stage: MVP coding round 31
+
 # Project State - MVP Round 30
 ## Round 30 Current State
 - Round 30 only adds share-link product and technical design documentation.

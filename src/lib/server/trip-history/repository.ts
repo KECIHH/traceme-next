@@ -5,6 +5,12 @@ import type { PoolClient, QueryResultRow } from "pg";
 import { getDatabasePool } from "@/lib/server/db/connection";
 import type { TripPlan } from "@/lib/schemas/trip";
 import {
+  assertShareToken,
+  buildShareTokenPreview,
+  generateShareToken,
+  hashShareToken,
+} from "@/lib/trip-history/share-tokens";
+import {
   assertUuid,
   assertVersionNumber,
   buildTripPlanRecordMetadata,
@@ -66,6 +72,31 @@ type TripPlanVersionSummaryDbRow = {
   created_at: string | Date;
 };
 
+type TripPlanShareDbRow = {
+  id: string;
+  owner_user_id: string;
+  trip_plan_record_id: string;
+  version_id: string;
+  token_preview: string;
+  status: TripPlanShareStatus;
+  expires_at: string | Date | null;
+  revoked_at: string | Date | null;
+  created_at: string | Date;
+  updated_at: string | Date;
+  last_accessed_at: string | Date | null;
+  access_count: number;
+};
+
+type PublicTripPlanShareDbRow = TripPlanShareDbRow & {
+  version_number: number;
+  version_source_provider: TripPlan["source"]["provider"];
+  version_source_kind: TripPlan["source"]["kind"];
+  version_generation_mode: TripPlan["generationMode"];
+  version_generated_at: string | Date;
+  version_created_at: string | Date;
+  trip_plan_snapshot: unknown;
+};
+
 type MaxVersionNumberDbRow = {
   max_version_number: number | string | null;
 };
@@ -114,6 +145,29 @@ export type TripPlanVersionSummary = {
   generationMode: TripPlan["generationMode"];
   generatedAt: string;
   createdAt: string;
+};
+
+export type TripPlanShareStatus = "active" | "revoked";
+
+export type TripPlanShare = {
+  id: string;
+  ownerUserId: string;
+  tripPlanRecordId: string;
+  versionId: string;
+  tokenPreview: string;
+  status: TripPlanShareStatus;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+};
+
+export type PublicSharedTrip = {
+  share: TripPlanShare;
+  version: TripPlanVersionSummary;
+  tripPlan: TripPlan;
 };
 
 export type CreateTripPlanRecordInput = {
@@ -166,6 +220,31 @@ export type ListTripPlanRecordsByUserInput = {
   db?: Queryable;
 };
 
+export type CreateTripPlanShareLinkInput = {
+  userId: string;
+  tripPlanRecordId: string;
+  expiresAt?: string | null;
+  db?: Queryable;
+};
+
+export type ListTripPlanShareLinksInput = {
+  userId: string;
+  tripPlanRecordId: string;
+  db?: Queryable;
+};
+
+export type RevokeTripPlanShareLinkInput = {
+  userId: string;
+  tripPlanRecordId: string;
+  shareId: string;
+  db?: Queryable;
+};
+
+export type GetPublicSharedTripByTokenInput = {
+  token: string;
+  db?: Queryable;
+};
+
 export class TripPlanRepositoryError extends Error {
   constructor(message: string) {
     super(message);
@@ -199,6 +278,10 @@ function toNumber(value: string | number) {
 
 function toNullableUuid(value: string | undefined) {
   return value === undefined ? null : assertUuid(value, "restoreFromVersionId");
+}
+
+function toNullableDateTimeValue(value: string | null | undefined) {
+  return value === undefined ? null : value;
 }
 
 function getDb(db?: Queryable) {
@@ -279,6 +362,39 @@ function mapTripPlanVersionSummary(
     generationMode: row.generation_mode,
     generatedAt: toDateTime(row.generated_at) ?? "",
     createdAt: toDateTime(row.created_at) ?? "",
+  };
+}
+
+function mapTripPlanShare(row: TripPlanShareDbRow): TripPlanShare {
+  return {
+    id: row.id,
+    ownerUserId: row.owner_user_id,
+    tripPlanRecordId: row.trip_plan_record_id,
+    versionId: row.version_id,
+    tokenPreview: row.token_preview,
+    status: row.status,
+    expiresAt: toDateTime(row.expires_at),
+    revokedAt: toDateTime(row.revoked_at),
+    createdAt: toDateTime(row.created_at) ?? "",
+    updatedAt: toDateTime(row.updated_at) ?? "",
+    lastAccessedAt: toDateTime(row.last_accessed_at),
+    accessCount: row.access_count,
+  };
+}
+
+function mapPublicSharedTrip(row: PublicTripPlanShareDbRow): PublicSharedTrip {
+  return {
+    share: mapTripPlanShare(row),
+    version: {
+      id: row.version_id,
+      versionNumber: row.version_number,
+      sourceProvider: row.version_source_provider,
+      sourceKind: row.version_source_kind,
+      generationMode: row.version_generation_mode,
+      generatedAt: toDateTime(row.version_generated_at) ?? "",
+      createdAt: toDateTime(row.version_created_at) ?? "",
+    },
+    tripPlan: parseTripPlanSnapshot(row.trip_plan_snapshot),
   };
 }
 
@@ -695,4 +811,217 @@ export async function listTripPlanRecordsByUser(input: ListTripPlanRecordsByUser
   );
 
   return result.rows.map(mapTripPlanRecord);
+}
+
+export async function createTripPlanShareLink(input: CreateTripPlanShareLinkInput) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const expiresAt = toNullableDateTimeValue(input.expiresAt);
+  const db = getDb(input.db);
+  const token = generateShareToken();
+  const tokenHash = hashShareToken(token);
+  const tokenPreview = buildShareTokenPreview(token);
+  const result = await db.query<TripPlanShareDbRow>(
+    `
+      INSERT INTO trip_plan_shares (
+        owner_user_id,
+        trip_plan_record_id,
+        version_id,
+        token_hash,
+        token_preview,
+        expires_at
+      )
+      SELECT
+        records.user_id,
+        records.id,
+        versions.id,
+        $3,
+        $4,
+        $5::timestamptz
+      FROM trip_plan_records records
+      INNER JOIN trip_plan_versions versions
+        ON versions.id = records.current_version_id
+       AND versions.trip_plan_record_id = records.id
+       AND versions.user_id = records.user_id
+      WHERE records.id = $1
+        AND records.user_id = $2
+        AND records.deleted_at IS NULL
+      LIMIT 1
+      RETURNING
+        id,
+        owner_user_id,
+        trip_plan_record_id,
+        version_id,
+        token_preview,
+        status,
+        expires_at,
+        revoked_at,
+        created_at,
+        updated_at,
+        last_accessed_at,
+        access_count
+    `,
+    [tripPlanRecordId, userId, tokenHash, tokenPreview, expiresAt],
+  );
+  const row = result.rows[0];
+
+  if (row === undefined) {
+    return null;
+  }
+
+  return {
+    share: mapTripPlanShare(row),
+    token,
+  };
+}
+
+export async function listTripPlanShareLinks(input: ListTripPlanShareLinksInput) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const db = getDb(input.db);
+  const recordResult = await db.query<{ id: string }>(
+    `
+      SELECT id
+      FROM trip_plan_records
+      WHERE id = $1
+        AND user_id = $2
+        AND deleted_at IS NULL
+      LIMIT 1
+    `,
+    [tripPlanRecordId, userId],
+  );
+
+  if (recordResult.rows.length === 0) {
+    return null;
+  }
+
+  const result = await db.query<TripPlanShareDbRow>(
+    `
+      SELECT
+        id,
+        owner_user_id,
+        trip_plan_record_id,
+        version_id,
+        token_preview,
+        status,
+        expires_at,
+        revoked_at,
+        created_at,
+        updated_at,
+        last_accessed_at,
+        access_count
+      FROM trip_plan_shares
+      WHERE owner_user_id = $1
+        AND trip_plan_record_id = $2
+      ORDER BY created_at DESC
+    `,
+    [userId, tripPlanRecordId],
+  );
+
+  return result.rows.map(mapTripPlanShare);
+}
+
+export async function revokeTripPlanShareLink(input: RevokeTripPlanShareLinkInput) {
+  const userId = assertUuid(input.userId, "userId");
+  const tripPlanRecordId = assertUuid(input.tripPlanRecordId, "tripPlanRecordId");
+  const shareId = assertUuid(input.shareId, "shareId");
+  const db = getDb(input.db);
+  const result = await db.query<TripPlanShareDbRow>(
+    `
+      UPDATE trip_plan_shares shares
+      SET
+        status = 'revoked',
+        revoked_at = COALESCE(shares.revoked_at, now()),
+        updated_at = now()
+      FROM trip_plan_records records
+      WHERE shares.id = $1
+        AND shares.trip_plan_record_id = $2
+        AND shares.owner_user_id = $3
+        AND records.id = shares.trip_plan_record_id
+        AND records.user_id = shares.owner_user_id
+        AND records.deleted_at IS NULL
+      RETURNING
+        shares.id,
+        shares.owner_user_id,
+        shares.trip_plan_record_id,
+        shares.version_id,
+        shares.token_preview,
+        shares.status,
+        shares.expires_at,
+        shares.revoked_at,
+        shares.created_at,
+        shares.updated_at,
+        shares.last_accessed_at,
+        shares.access_count
+    `,
+    [shareId, tripPlanRecordId, userId],
+  );
+  const row = result.rows[0];
+
+  return row === undefined ? null : mapTripPlanShare(row);
+}
+
+export async function getPublicSharedTripByToken(input: GetPublicSharedTripByTokenInput) {
+  const token = assertShareToken(input.token);
+  const tokenHash = hashShareToken(token);
+  const db = getDb(input.db);
+  const result = await db.query<PublicTripPlanShareDbRow>(
+    `
+      SELECT
+        shares.id,
+        shares.owner_user_id,
+        shares.trip_plan_record_id,
+        shares.version_id,
+        shares.token_preview,
+        shares.status,
+        shares.expires_at,
+        shares.revoked_at,
+        shares.created_at,
+        shares.updated_at,
+        shares.last_accessed_at,
+        shares.access_count,
+        versions.version_number,
+        versions.source_provider AS version_source_provider,
+        versions.source_kind AS version_source_kind,
+        versions.generation_mode AS version_generation_mode,
+        versions.generated_at AS version_generated_at,
+        versions.created_at AS version_created_at,
+        versions.trip_plan_snapshot
+      FROM trip_plan_shares shares
+      INNER JOIN trip_plan_records records
+        ON records.id = shares.trip_plan_record_id
+       AND records.user_id = shares.owner_user_id
+       AND records.deleted_at IS NULL
+      INNER JOIN trip_plan_versions versions
+        ON versions.id = shares.version_id
+       AND versions.trip_plan_record_id = records.id
+       AND versions.user_id = records.user_id
+      WHERE shares.token_hash = $1
+        AND shares.status = 'active'
+        AND shares.revoked_at IS NULL
+        AND (shares.expires_at IS NULL OR shares.expires_at > now())
+      LIMIT 1
+    `,
+    [tokenHash],
+  );
+  const row = result.rows[0];
+
+  if (row === undefined) {
+    return null;
+  }
+
+  await db.query(
+    `
+      UPDATE trip_plan_shares
+      SET
+        last_accessed_at = now(),
+        access_count = access_count + 1,
+        updated_at = now()
+      WHERE id = $1
+        AND status = 'active'
+    `,
+    [row.id],
+  );
+
+  return mapPublicSharedTrip(row);
 }

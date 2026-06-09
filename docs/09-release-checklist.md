@@ -20,9 +20,9 @@ npx tsc --noEmit
 - `npm run build` 不依赖浏览器端密钥。
 - `npx tsc --noEmit` 无类型错误。
 
-## Current Round 28 Status Note
+## Current Round 31 Status Note
 
-The round sections below are historical acceptance notes unless a later round supersedes them. As of Round 28, the protected server-side versions and restore APIs are available, while version history UI, restore UI/buttons, share links, admin UI, and client-side database access remain unavailable. Use the Round 28 section as the current source of truth for version API release checks.
+The round sections below are historical acceptance notes unless a later round supersedes them. As of Round 31, protected server-side versions and restore APIs are available, and share-link APIs are available for owner create/list/revoke plus public read-only token lookup. Version history UI, restore UI/buttons, share UI, public share pages, admin UI, and client-side database access remain unavailable.
 
 ## Round 22 Database Configuration Note
 
@@ -73,7 +73,7 @@ npm run auth:db-summary
 Acceptance checks:
 
 - The migration command reports only variable presence, migration filenames, and required table status.
-- Required tables are present: `users`, `accounts`, `sessions`, `verification_token`, `trip_plan_records`, `trip_plan_versions`, and `schema_migrations`.
+- Required tables are present: `users`, `accounts`, `sessions`, `verification_token`, `trip_plan_records`, `trip_plan_versions`, `trip_plan_shares`, and `schema_migrations`.
 - `GET /api/account/me` returns `401` when no valid session is present.
 - After a real OAuth login, `GET /api/account/me` returns only `id`, `email`, `name`, and `image`.
 - The database summary records only counts and user field-presence status; it must not select or print provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, or connection strings.
@@ -164,6 +164,27 @@ Release checks:
 - Append increments `version_number` and updates `trip_plan_records.current_version_id`.
 - Restore creates a new version copied from the restored snapshot instead of mutating the old version.
 - Responses and logs must not expose owner ids, internal record ids, restore metadata, notes, provider tokens, session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, connection strings, SQL, or stack traces.
+
+## Round 31 Share Link APIs
+
+Round 31 enables only the minimum server-side share-link API loop:
+
+- `POST /api/travel-plans/[id]/share-links` requires the current user, creates a fixed-version share for the user's own saved record, and returns the raw token/share URL only once.
+- `GET /api/travel-plans/[id]/share-links` requires the current user and returns safe share summaries without raw tokens or token hashes.
+- `PATCH /api/travel-plans/[id]/share-links/[shareId]` requires the current user and soft-revokes only that user's share link.
+- `GET /api/shared/trips/[token]` does not require login and returns only a public read-only `TripPlan` snapshot plus minimal non-sensitive metadata for a valid active non-expired token.
+- Tokens are generated server-side and stored only as hashes; `token_preview` is not a credential.
+- Missing, invalid, revoked, expired, deleted-record, and cross-boundary shares return `404`.
+- Share UI, public share pages, admin UI, complex permission backend, and client-side database access remain unavailable.
+- `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, and restore behavior remains unchanged.
+
+Release checks:
+
+- Unauthenticated owner share create/list/revoke requests return `401` with `error.code=UNAUTHORIZED`.
+- Cross-owner create/revoke/list targets return `404` with `error.code=NOT_FOUND`.
+- Create returns raw token/share URL once, but list/revoke/public responses do not return raw tokens or token hashes.
+- Revoked or expired public tokens return `404`.
+- Public responses do not expose owner ids, email, token hashes, internal record fields, provider/session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, connection strings, SQL, or stack traces.
 
 ## Mock 模式验收
 
