@@ -1,3 +1,30 @@
+# Project State - MVP Round 35
+## Round 35 Current State
+- Round 35 only adds production-readiness operations design documentation for moving the current beta toward a steadier production deployment.
+- Added `docs/12-production-ops-design.md` as the production operations design source for domain, HTTPS, reverse proxy, Docker Compose, Next.js app container, PostgreSQL via `[数据库服务]`, environment layering, secret management, backup, migration, logging, monitoring, rollback, and release flow.
+- The current deployment status is documented as a beta deployment where Docker Compose, real database, real auth, and `[真实 AI Provider]` acceptance have already been verified without recording concrete infrastructure values.
+- Existing `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, restore, share, and public-share API behavior remains unchanged.
+
+## Round 35 Boundaries
+- No admin UI was added.
+- No payment, map, weather, or search feature was added.
+- No business feature, route behavior, database migration, runtime configuration, Docker Compose service, or environment variable behavior was changed.
+- No `.env` or `.env.local` content was added.
+- No real server IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+- The production design uses placeholders only for deploy-specific values: `[生产域名]`, `[测试版访问地址]`, `[数据库服务]`, and `[真实 AI Provider]`.
+
+## Round 35 Verification
+- `npm test`: passed, 91 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed.
+- `npx tsc --noEmit`: passed.
+- Documentation safety scan passed for the added diff and `docs/12-production-ops-design.md`; no real server IP, real domain, database URL, auth secret, OAuth secret, AI key, session token, bearer token, authorization header value, or provider credential was found.
+- Final changed-file scope is limited to `docs/12-production-ops-design.md` and `docs/08-project-state.md`.
+
+## Round 35 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP production operations design round 35
+
 # Project State - MVP Round 34
 ## Round 34 Current State
 - Round 34 completed the real local browser acceptance for the existing account flow: generate, save, my trips, detail, version history, share link, public share page, and revoke share.
