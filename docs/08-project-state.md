@@ -1,3 +1,53 @@
+# Project State - MVP Round 34
+## Round 34 Current State
+- Round 34 completed the real local browser acceptance for the existing account flow: generate, save, my trips, detail, version history, share link, public share page, and revoke share.
+- The target was a local production URL recorded only as `[测试版访问地址]`.
+- The generation path used `[真实 AI Provider]`; the provider name, model, endpoint, and raw response were not recorded.
+- The existing Docker PostgreSQL test database was reconnected through ignored local env only, and the missing share-link migration was applied before browser acceptance.
+- Existing save, history, versions, restore, share, public-share, and generate API behavior remained unchanged.
+- No source code, API behavior, auth behavior, UI feature, provider integration, admin UI, map, weather, or search feature was added in this round.
+
+## Round 34 Boundaries
+- No admin UI was added.
+- No map, weather, or search feature was added.
+- No new feature or workaround login mode was added.
+- No core API behavior was changed.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+- No real server IP, database connection value, auth secret, OAuth secret, API key, bearer token, authorization header value, raw share token, `tokenHash`, owner email, SQL detail, stack trace, or provider secret was recorded.
+
+## Round 34 Verification
+- `git status --short`: clean before Round 34 documentation updates.
+- `git check-ignore -v .env .env.local`: confirmed ignored local env files remain covered by `.gitignore`.
+- `npm run db:migrate`: passed against `[测试数据库]`; earlier migrations were skipped and the share-link migration was applied, leaving all required tables present.
+- `npm run auth:db-summary`: passed against `[测试数据库]`; auth/session row counts and latest user field-presence summary were printed without querying or printing sensitive fields.
+- Local production build/start succeeded for `[测试版访问地址]`.
+- Browser acceptance passed:
+  - homepage loaded and global `首页` / `我的行程` navigation entries were usable.
+  - real OAuth login completed and the app rendered the authenticated account state.
+  - a `[真实 AI Provider]` trip plan was generated successfully.
+  - `保存到我的行程` succeeded and exposed safe detail/list links.
+  - `/trips/[id]` showed the current saved `TripPlan` snapshot, version history, share controls, copy, Markdown download, and print/save-PDF entry.
+  - `/trips` listed the saved trip and linked back to the saved detail page.
+  - copy full text showed copy feedback; Markdown download showed download feedback; print/save-PDF entry showed browser print feedback.
+  - version history showed v1 and v2 after using the existing protected version API to append a new version; restoring the old version required confirmation, refreshed the list, and created a new current version without overwriting old versions.
+  - share-link creation succeeded, the owner share list showed only a safe summary, and `tokenHash` was not displayed.
+  - copying the share link was available; the current browser used the manual-copy fallback.
+  - public shared-trip API was readable without cookies, and the public page shell rendered as a guest view without owner actions or internal fields.
+  - revoking the share link required confirmation and succeeded; the revoked public API returned `404 NOT_FOUND`, and the public page showed `分享链接不可用或已失效`.
+- Safety checks passed:
+  - unauthenticated `GET /api/travel-plans` returned HTTP `401` without forbidden sensitive text.
+  - invalid public share lookup returned HTTP `404` without forbidden sensitive text.
+  - invalid generate request returned HTTP `400` without forbidden sensitive text.
+  - inspected page/API text did not expose real IPs, database connection values, auth secrets, OAuth secrets, API keys, bearer values, authorization header values, `tokenHash`, SQL detail, stack traces, owner ids, or owner emails.
+- `npm test`: passed, 91 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/`, `/trips`, `/trips/[id]`, `/shared/trips/[token]`, and the existing account/history/version/share APIs.
+- `npx tsc --noEmit`: passed.
+
+## Round 34 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP acceptance round 34
+
 # Project State - MVP Round 33
 ## Round 33 Current State
 - Round 33 polishes the account workbench experience around the existing flow: generate a plan, manually save it, open my trips, open trip detail, inspect version history, and create or revoke share links.
