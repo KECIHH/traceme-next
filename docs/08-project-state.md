@@ -1,3 +1,64 @@
+# Project State - MVP Round 33
+## Round 33 Current State
+- Round 33 polishes the account workbench experience around the existing flow: generate a plan, manually save it, open my trips, open trip detail, inspect version history, and create or revoke share links.
+- Added a lightweight global navigation chrome with:
+  - `首页` entry.
+  - `我的行程` entry.
+  - Auth status display when auth is configured.
+  - Login entry that opens in a new tab and returns to the current pathname.
+  - Logout entry that returns to `/`.
+- Added safe account navigation helpers that pass only display labels to the client navigation and do not render the internal account id.
+- Updated the home page copy to make manual save explicit: generated results stay on the page and are not auto-saved.
+- Updated save-success copy so the next steps are explicit: view detail or return to the trips list.
+- Updated `/trips`:
+  - clearer saved-trip page heading.
+  - unauthenticated state keeps data hidden and offers login plus return-to-generator actions.
+  - empty state says there are no saved trips and offers a generator CTA.
+  - list cards still use safe summaries only.
+- Updated `/trips/[id]`:
+  - detail summary is labeled as the current saved snapshot.
+  - export/copy/print actions remain attached to the current snapshot.
+  - version history and share links are separated into distinct workbench regions.
+  - wide layouts place version history and share links side by side to reduce button clutter.
+- Updated `/shared/trips/[token]`:
+  - remains public read-only.
+  - keeps AI draft and human-confirmation wording.
+  - still hides save, restore, version-management, create-share, and revoke-share owner actions.
+  - unavailable share links include a clear return-to-generator CTA.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+- Existing save, history, versions, restore, and share API behavior remains unchanged.
+
+## Round 33 Boundaries
+- No admin UI was added.
+- No map, weather, or search feature was added.
+- No complex permission panel was added.
+- No auto-save behavior was added.
+- No client-side database access was added.
+- No generated `TripPlan` snapshot is stored in `localStorage` or `sessionStorage`.
+- No `userId`, `ownerUserId`, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, API key, bearer token, authorization header value, `tokenHash`, SQL detail, stack trace, or provider secret was added to user-facing UI.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 33 Verification
+- `npm test`: passed, 91 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/`, `/trips`, `/trips/[id]`, `/shared/trips/[token]`, and the existing account/history/share APIs.
+- `npx tsc --noEmit`: passed.
+- Added automated coverage for safe account navigation labels, Home/My Trips routes, login callback routes, auth-not-configured fallback, root sign-out redirect, new-tab sign-in behavior, and no sensitive navigation text.
+- Existing automated coverage continues to verify unauthenticated history/share APIs do not read or write data, public share pages hide owner-only operations, adapters strip internal fields, and save entry code does not persist full `TripPlan` snapshots in browser storage.
+- In-app Browser control was not available in this thread because the required Browser Node execution tool was not exposed.
+- Local production HTTP smoke against `http://127.0.0.1:3000` verified:
+  - `/` returned HTTP `200` and exposed the global `首页` / `我的行程` navigation plus the generation form shell.
+  - `/trips` returned HTTP `200` and exposed the global navigation plus return-to-generator entry.
+  - `/trips/[id]` returned HTTP `200` for the client detail shell and exposed the global navigation.
+  - `/shared/trips/invalid-token` returned HTTP `200`, exposed the global navigation, and kept the public page route available.
+  - unauthenticated `GET /api/travel-plans` returned HTTP `401` with `UNAUTHORIZED` and no `userId`, `DATABASE_URL`, `AUTH_SECRET`, SQL, stack, bearer, authorization, or token-hash detail in the response body.
+- Not verified in this round: authenticated browser save, real `/trips` records, real `/trips/[id]` version/share data, create/copy/open/revoke share interactions, and logged-in save success in-browser, because no usable authenticated session or real database-backed saved trips were available and the in-app Browser control surface was unavailable.
+
+## Round 33 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP coding round 33
+
 # Project State - MVP Round 32
 ## Round 32 Current State
 - Round 32 adds the minimum share-link UI and public read-only share page on top of the Round 31 share APIs.

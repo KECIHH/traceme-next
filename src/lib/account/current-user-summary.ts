@@ -5,6 +5,11 @@ export type CurrentUser = {
   image: string | null;
 };
 
+export type CurrentUserNavigationSummary = {
+  primaryLabel: string;
+  secondaryLabel: string | null;
+};
+
 type AuthSessionLike = {
   user?: {
     id?: string | null;
@@ -41,6 +46,30 @@ export function toCurrentUser(session: AuthSessionLike): CurrentUser | null {
     email: sessionUser.email ?? null,
     name: sessionUser.name ?? null,
     image: sessionUser.image ?? null,
+  };
+}
+
+function normalizeNavigationLabel(value: string | null | undefined) {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : null;
+}
+
+export function toCurrentUserNavigationSummary(
+  session: AuthSessionLike,
+): CurrentUserNavigationSummary | null {
+  const sessionUser = session?.user;
+
+  if (!sessionUser) {
+    return null;
+  }
+
+  const name = normalizeNavigationLabel(sessionUser.name);
+  const email = normalizeNavigationLabel(sessionUser.email);
+
+  return {
+    primaryLabel: name ?? email ?? "已登录",
+    secondaryLabel: name !== null && email !== null && email !== name ? email : null,
   };
 }
 

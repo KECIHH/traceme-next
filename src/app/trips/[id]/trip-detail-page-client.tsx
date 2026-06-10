@@ -102,12 +102,20 @@ function LoginGuide({ id }: { id: string }) {
       <p className="mt-3 text-sm leading-6 text-zinc-600">
         行程详情只会通过受保护 API 加载当前登录账号自己的保存快照。未登录时不会展示历史数据。
       </p>
-      <a
-        href={`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-        className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-      >
-        登录
-      </a>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <a
+          href={`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+          className="inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        >
+          登录
+        </a>
+        <Link
+          href="/trips"
+          className="inline-flex rounded-md bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          返回我的行程
+        </Link>
+      </div>
     </section>
   );
 }
@@ -130,14 +138,16 @@ function DetailSummary({ detail }: { detail: SavedTripPlanDetail }) {
     <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-emerald-700">
-            {getSavedTripPlanSourceLabel(record.source)}
-          </p>
+          <p className="text-sm font-semibold text-emerald-700">当前保存快照</p>
           <h1 className="mt-2 break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
             {record.title}
           </h1>
           <p className="mt-3 break-words text-sm leading-6 text-zinc-600">
             {record.departureCity} → {record.destination}
+          </p>
+          <p className="mt-2 break-words text-xs leading-5 text-zinc-500">
+            来源摘要：{getSavedTripPlanSourceLabel(record.source)} · 当前 v
+            {currentVersion.versionNumber}
           </p>
         </div>
         <Link
@@ -536,7 +546,7 @@ export function TripDetailPageClient({ id }: { id: string }) {
     detailState.status === "error" && detailState.error.kind === "unauthorized";
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
+    <main className="bg-[#f7f5f0] text-zinc-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
         {detailState.status === "loading" ? (
           <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
@@ -557,16 +567,18 @@ export function TripDetailPageClient({ id }: { id: string }) {
               tripPlan={detailState.detail.currentVersion.tripPlan}
               showDebugJson={false}
             />
-            <ShareLinksPanel tripPlanId={id} />
-            <VersionHistoryPanel
-              detail={detailState.detail}
-              versionsState={versionsState}
-              previewState={previewState}
-              restoreFeedback={restoreFeedback}
-              restoringVersionId={restoringVersionId}
-              onPreview={handlePreview}
-              onRestore={handleRestore}
-            />
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+              <VersionHistoryPanel
+                detail={detailState.detail}
+                versionsState={versionsState}
+                previewState={previewState}
+                restoreFeedback={restoreFeedback}
+                restoringVersionId={restoringVersionId}
+                onPreview={handlePreview}
+                onRestore={handleRestore}
+              />
+              <ShareLinksPanel tripPlanId={id} />
+            </div>
             {previewState.status === "success" ? (
               <VersionPreview version={previewState.version} />
             ) : null}

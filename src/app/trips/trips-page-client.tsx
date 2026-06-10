@@ -54,12 +54,20 @@ function LoginGuide() {
       <p className="mt-3 text-sm leading-6 text-zinc-600">
         这里只显示当前登录账号已经保存的行程。未登录时不会加载或展示任何历史数据。
       </p>
-      <a
-        href={`/api/auth/signin?callbackUrl=${encodeURIComponent("/trips")}`}
-        className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-      >
-        登录
-      </a>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <a
+          href={`/api/auth/signin?callbackUrl=${encodeURIComponent("/trips")}`}
+          className="inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        >
+          登录
+        </a>
+        <Link
+          href="/"
+          className="inline-flex rounded-md bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          返回生成页
+        </Link>
+      </div>
     </section>
   );
 }
@@ -71,6 +79,12 @@ function EmptyState() {
       <p className="mt-2 text-sm leading-6 text-zinc-600">
         生成页面不会自动保存行程；只有通过受保护保存 API 创建过的记录才会出现在这里。
       </p>
+      <Link
+        href="/"
+        className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        去生成计划
+      </Link>
     </section>
   );
 }
@@ -174,11 +188,11 @@ export function TripsPageClient() {
   const isUnauthorized = state.status === "error" && state.error.kind === "unauthorized";
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
+    <main className="bg-[#f7f5f0] text-zinc-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
         <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-emerald-700">TraceMe Next</p>
+            <p className="text-sm font-semibold text-emerald-700">已保存行程</p>
             <h1 className="mt-2 break-words text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
               我的行程
             </h1>

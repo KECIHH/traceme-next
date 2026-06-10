@@ -109,7 +109,7 @@ export function buildSaveTripPlanActionView(
         buttonDisabled: true,
         feedback: {
           tone: "success",
-          message: "已保存到我的行程。",
+          message: "已保存到我的行程。现在可以查看详情或回到我的行程列表。",
         },
         detailLink: `/trips/${state.data.record.id}`,
         listLink: "/trips",

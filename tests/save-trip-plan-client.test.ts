@@ -211,7 +211,8 @@ test("save trip plan action view exposes safe success links", () => {
 
   assert.equal(view.buttonLabel, "已保存");
   assert.equal(view.buttonDisabled, true);
-  assert.equal(view.feedback?.message, "已保存到我的行程。");
+  assert.match(view.feedback?.message ?? "", /查看详情/);
+  assert.match(view.feedback?.message ?? "", /我的行程列表/);
   assert.equal(view.detailLink, `/trips/${recordId}`);
   assert.equal(view.listLink, "/trips");
   assert.equal(view.loginLink, null);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { TripPlanResult } from "@/components/trip/trip-plan-result";
@@ -51,6 +52,12 @@ function PublicUnavailableState() {
       <p className="mt-3 break-words text-sm leading-6 text-zinc-600">
         该链接可能不存在、已撤销或已过期。为保护行程隐私，页面不会区分具体原因。
       </p>
+      <Link
+        href="/"
+        className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        返回生成页
+      </Link>
     </section>
   );
 }
@@ -139,7 +146,7 @@ export function SharedTripPageClient({ token }: { token: string }) {
   }, [token]);
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
+    <main className="bg-[#f7f5f0] text-zinc-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
         {sharedTripState.status === "loading" ? (
           <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">

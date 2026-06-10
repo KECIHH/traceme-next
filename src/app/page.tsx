@@ -88,19 +88,19 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-zinc-950">
+    <main className="bg-[#f7f5f0] text-zinc-950">
       <div
         className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10"
         data-print-shell="true"
       >
         <header className="max-w-3xl" data-print-hidden="true">
-          <p className="text-sm font-semibold text-emerald-700">TraceMe Next</p>
+          <p className="text-sm font-semibold text-emerald-700">生成旅行计划</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-            迹遇 Next
+            生成旅行计划草稿
           </h1>
           <p className="mt-4 text-base leading-7 text-zinc-600">
-            输入出发地、目的地、日期、人数和偏好，生成一份旅行计划草稿预览。
-            结果会标明当前来源，并提醒出发前自行确认实时信息。
+            输入出发地、目的地、日期、人数和偏好，先生成一份可人工确认的草稿预览。
+            保存是手动动作；当前结果会留在本页，不会自动写入我的行程。
           </p>
         </header>
 
