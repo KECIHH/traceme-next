@@ -1789,7 +1789,6 @@ test("trip history and share routes require current user without adding UI or ad
 
   for (const forbiddenPath of [
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "share"),
-    path.join(repoRoot, "src", "app", "shared"),
     path.join(repoRoot, "src", "app", "history"),
     path.join(repoRoot, "src", "app", "admin"),
   ]) {
@@ -1801,6 +1800,37 @@ test("trip history and share routes require current user without adding UI or ad
     "utf8",
   );
   assert.doesNotMatch(publicShareRoute, /requireCurrentUser/);
+
+  const publicSharePagePath = path.join(
+    repoRoot,
+    "src",
+    "app",
+    "shared",
+    "trips",
+    "[token]",
+    "page.tsx",
+  );
+  const publicShareClientPath = path.join(
+    repoRoot,
+    "src",
+    "app",
+    "shared",
+    "trips",
+    "[token]",
+    "shared-trip-page-client.tsx",
+  );
+  const publicSharePage = await readFile(publicSharePagePath, "utf8");
+  const publicShareClient = await readFile(publicShareClientPath, "utf8");
+
+  assert.match(publicSharePage, /robots/);
+  assert.match(publicShareClient, /getSharedTripClient/);
+  assert.match(publicShareClient, /showDebugJson=\{false\}/);
+  assert.match(publicShareClient, /showResultActions=\{false\}/);
+  assert.match(publicShareClient, /showSaveAction=\{false\}/);
+  assert.doesNotMatch(
+    `${publicSharePage}\n${publicShareClient}`,
+    /requireCurrentUser|saveTripPlanClient|listTripPlanVersionsClient|restoreTripPlanVersionClient|createShareLinkClient|revokeShareLinkClient|tokenHash|ownerUserId|tripPlanRecordId/i,
+  );
 });
 
 test("trip history repository keeps list and detail queries owner-scoped and soft-delete aware", async () => {

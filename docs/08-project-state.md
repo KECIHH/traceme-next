@@ -1,3 +1,51 @@
+# Project State - MVP Round 32
+## Round 32 Current State
+- Round 32 adds the minimum share-link UI and public read-only share page on top of the Round 31 share APIs.
+- Added owner share controls on `/trips/[id]`:
+  - create a share link through `POST /api/travel-plans/[id]/share-links`
+  - copy the one-time returned `shareUrl`, with a manual-copy fallback
+  - list safe share summaries from `GET /api/travel-plans/[id]/share-links`
+  - revoke active links through `PATCH /api/travel-plans/[id]/share-links/[shareId]` after confirmation
+- Added client/service adapters:
+  - `createShareLinkClient`
+  - `listShareLinksClient`
+  - `revokeShareLinkClient`
+  - `getSharedTripClient`
+- Added safe share view helpers for owner labels, revoke confirmation, copy/create/revoke feedback, and the unified public unavailable message.
+- Added public route `/shared/trips/[token]`.
+- The public route calls only `GET /api/shared/trips/[token]`, does not require login, and renders the shared `TripPlan` snapshot with `TripPlanResult`.
+- Public share pages pass `showDebugJson={false}`, `showResultActions={false}`, and `showSaveAction={false}`.
+- Public share pages keep AI draft and human-verification wording visible and include a compact read-only share banner.
+- Unavailable public links show the same message: `分享链接不可用或已失效`.
+- Existing `POST /api/travel-plans/generate` behavior remains unchanged.
+- Existing `POST /api/travel-plans/compare` behavior remains unchanged.
+- Existing save, history, versions, restore, and Round 31 share API behavior remains unchanged.
+
+## Round 32 Boundaries
+- No admin UI was added.
+- No access-statistics UI was added.
+- No complex permission panel was added.
+- No public edit, restore, delete, save, revoke, or create-share operation was added.
+- No client-side database access was added.
+- No expiration controls were added to the owner UI.
+- No raw token is displayed from share list responses; the full URL is only shown from the one-time create response.
+- No `userId`, `ownerUserId`, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, API key, bearer token, authorization header value, `tokenHash`, SQL detail, stack trace, or provider secret was added to user-facing UI.
+- No `.env` or `.env.local` content was added to docs, tests, source, or output.
+
+## Round 32 Verification
+- `npm test`: passed, 87 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/shared/trips/[token]`, `/api/shared/trips/[token]`, `/api/travel-plans/[id]/share-links`, and `/api/travel-plans/[id]/share-links/[shareId]`.
+- `npx tsc --noEmit`: passed.
+- `npm run db:migrate`: not verified against a real database; the safe migration script reported `DATABASE_URL` missing and failed closed without printing connection values.
+- Automated tests cover share client `401`, `404`, and `500` mapping; one-time create `shareUrl`/`token` adaptation; list redaction of raw tokens and token hashes; revoke request shape and safe response adaptation; public shared-trip adapter redaction; unified public unavailable copy; and public page route boundaries.
+- Limited browser acceptance passed for `/shared/trips/invalid-token` on a local production server: the page showed `分享链接不可用或已失效`, did not show owner actions, and produced no browser console errors.
+- Not verified in this round: authenticated browser acceptance for create/copy/open/revoke, because no usable real `DATABASE_URL` or authenticated saved-trip session was available in this environment.
+
+## Round 32 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP coding round 32
+
 # Project State - MVP Round 31
 ## Round 31 Current State
 - Round 31 implements the minimum server-side share-link API loop for saved travel plans.

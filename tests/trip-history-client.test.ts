@@ -3,16 +3,22 @@ import test from "node:test";
 
 import { mockTripPlan } from "@/lib/mock/mock-trip-plan";
 import {
+  createShareLinkClient,
   getSavedTripPlanDetail,
+  getSharedTripClient,
   getTripPlanVersionClient,
+  listShareLinksClient,
   listSavedTripPlans,
   listTripPlanVersionsClient,
+  revokeShareLinkClient,
   restoreTripPlanVersionClient,
 } from "@/lib/services/trip-history-client";
 
 const recordId = "323e4567-e89b-42d3-a456-426614174000";
 const versionId = "423e4567-e89b-42d3-a456-426614174000";
 const secondVersionId = "523e4567-e89b-42d3-a456-426614174000";
+const shareId = "723e4567-e89b-42d3-a456-426614174000";
+const validShareToken = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const safeSource = {
   provider: "mock",
   kind: "mock",
@@ -67,6 +73,20 @@ function buildApiVersion(overrides: Record<string, unknown> = {}) {
     generationMode: "quick",
     generatedAt: mockTripPlan.generatedAt,
     createdAt: "2026-06-09T00:00:01.000Z",
+    ...overrides,
+  };
+}
+
+function buildApiShare(overrides: Record<string, unknown> = {}) {
+  return {
+    id: shareId,
+    tokenPreview: validShareToken.slice(-8),
+    status: "active",
+    versionId,
+    expiresAt: null,
+    revokedAt: null,
+    createdAt: "2026-06-09T00:00:01.000Z",
+    updatedAt: "2026-06-09T00:00:01.000Z",
     ...overrides,
   };
 }
@@ -441,4 +461,265 @@ test("restore trip plan version client posts only the version id and adapts succ
   assert.deepEqual(currentVersion.source, safeSource);
   assert.equal("restoreFromVersionId" in currentVersion, false);
   assert.equal("userId" in currentVersion, false);
+});
+
+test("share clients map 401, 404, and 500 responses safely", async () => {
+  const cases = [
+    {
+      status: 401,
+      code: "UNAUTHORIZED",
+      expectedKind: "unauthorized",
+    },
+    {
+      status: 404,
+      code: "NOT_FOUND",
+      expectedKind: "not_found",
+    },
+    {
+      status: 500,
+      code: "INTERNAL_ERROR",
+      expectedKind: "server_error",
+    },
+  ] as const;
+
+  for (const { status, code, expectedKind } of cases) {
+    const createResult = await createShareLinkClient(
+      recordId,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+    const listResult = await listShareLinksClient(
+      recordId,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+    const revokeResult = await revokeShareLinkClient(
+      recordId,
+      shareId,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+    const publicResult = await getSharedTripClient(
+      validShareToken,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+
+    for (const result of [createResult, listResult, revokeResult, publicResult]) {
+      assert.equal(result.ok, false);
+
+      if (result.ok) {
+        throw new Error("Expected share client to fail.");
+      }
+
+      assert.equal(result.error.kind, expectedKind);
+      assert.equal(result.error.status, status);
+      assert.doesNotMatch(
+        result.error.message,
+        /tokenHash|token|userId|DATABASE_URL|AUTH_SECRET|OAuth secret|API Key|Bearer|Authorization|SQL|stack/i,
+      );
+    }
+  }
+});
+
+test("create share link client adapts one-time share URL or token and strips internals", async () => {
+  const calls: Array<{
+    input: string;
+    init?: RequestInit;
+  }> = [];
+  const shareUrl = `http://localhost/shared/trips/${validShareToken}`;
+  const result = await createShareLinkClient(
+    recordId,
+    createRecordingJsonFetcher(
+      {
+        ok: true,
+        data: {
+          share: buildApiShare({
+            token: validShareToken,
+            tokenHash: "hashed-token",
+            ownerUserId: "123e4567-e89b-42d3-a456-426614174000",
+            tripPlanRecordId: recordId,
+            accessCount: 5,
+          }),
+          shareUrl,
+          token: validShareToken,
+          tokenHash: "hashed-token",
+        },
+      },
+      200,
+      calls,
+    ),
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.input, `/api/travel-plans/${recordId}/share-links`);
+  assert.equal(calls[0]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {});
+
+  if (!result.ok) {
+    throw new Error("Expected create share client to succeed.");
+  }
+
+  const share = result.data.share as Record<string, unknown>;
+
+  assert.equal(result.data.shareUrl, shareUrl);
+  assert.equal(result.data.token, validShareToken);
+  assert.equal(share.id, shareId);
+  assert.equal(share.tokenPreview, validShareToken.slice(-8));
+  assert.equal("token" in share, false);
+  assert.equal("tokenHash" in share, false);
+  assert.equal("ownerUserId" in share, false);
+  assert.equal("tripPlanRecordId" in share, false);
+  assert.equal("accessCount" in share, false);
+
+  const tokenOnlyResult = await createShareLinkClient(
+    recordId,
+    createJsonFetcher({
+      ok: true,
+      data: {
+        share: buildApiShare(),
+        token: validShareToken,
+      },
+    }),
+  );
+
+  assert.equal(tokenOnlyResult.ok, true);
+
+  if (!tokenOnlyResult.ok) {
+    throw new Error("Expected token-only create share client to succeed.");
+  }
+
+  assert.equal(tokenOnlyResult.data.shareUrl, undefined);
+  assert.equal(tokenOnlyResult.data.token, validShareToken);
+});
+
+test("list share links client strips raw tokens and token hashes", async () => {
+  const result = await listShareLinksClient(
+    recordId,
+    createJsonFetcher({
+      ok: true,
+      data: {
+        shares: [
+          buildApiShare({
+            token: validShareToken,
+            shareUrl: `http://localhost/shared/trips/${validShareToken}`,
+            tokenHash: "hashed-token",
+            ownerUserId: "123e4567-e89b-42d3-a456-426614174000",
+            tripPlanRecordId: recordId,
+            accessCount: 5,
+            lastAccessedAt: "2026-06-09T00:10:00.000Z",
+          }),
+        ],
+      },
+    }),
+  );
+
+  assert.equal(result.ok, true);
+
+  if (!result.ok) {
+    throw new Error("Expected share list client to succeed.");
+  }
+
+  const share = result.data.shares[0] as Record<string, unknown>;
+
+  assert.equal(share.id, shareId);
+  assert.equal(share.tokenPreview, validShareToken.slice(-8));
+  assert.equal("token" in share, false);
+  assert.equal("shareUrl" in share, false);
+  assert.equal("tokenHash" in share, false);
+  assert.equal("ownerUserId" in share, false);
+  assert.equal("tripPlanRecordId" in share, false);
+  assert.equal("accessCount" in share, false);
+  assert.equal("lastAccessedAt" in share, false);
+});
+
+test("revoke share link client uses PATCH and adapts success data safely", async () => {
+  const calls: Array<{
+    input: string;
+    init?: RequestInit;
+  }> = [];
+  const result = await revokeShareLinkClient(
+    recordId,
+    shareId,
+    createRecordingJsonFetcher(
+      {
+        ok: true,
+        data: {
+          share: buildApiShare({
+            status: "revoked",
+            revokedAt: "2026-06-09T00:05:00.000Z",
+            token: validShareToken,
+            tokenHash: "hashed-token",
+          }),
+        },
+      },
+      200,
+      calls,
+    ),
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.input, `/api/travel-plans/${recordId}/share-links/${shareId}`);
+  assert.equal(calls[0]?.init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), { status: "revoked" });
+
+  if (!result.ok) {
+    throw new Error("Expected revoke client to succeed.");
+  }
+
+  const share = result.data.share as Record<string, unknown>;
+
+  assert.equal(share.status, "revoked");
+  assert.equal("token" in share, false);
+  assert.equal("tokenHash" in share, false);
+});
+
+test("public shared trip client exposes only public metadata and the TripPlan snapshot", async () => {
+  const result = await getSharedTripClient(
+    validShareToken,
+    createJsonFetcher({
+      ok: true,
+      data: {
+        tripPlan: mockTripPlan,
+        share: {
+          id: shareId,
+          ownerUserId: "123e4567-e89b-42d3-a456-426614174000",
+          tripPlanRecordId: recordId,
+          tokenHash: "hashed-token",
+          sharedAt: "2026-06-09T00:00:01.000Z",
+          expiresAt: null,
+          accessCount: 5,
+          version: {
+            id: versionId,
+            versionNumber: 1,
+            source: safeSource,
+            generationMode: "quick",
+            generatedAt: mockTripPlan.generatedAt,
+            createdAt: "2026-06-09T00:00:01.000Z",
+            userId: "123e4567-e89b-42d3-a456-426614174000",
+            tripPlanRecordId: recordId,
+          },
+        },
+      },
+    }),
+  );
+
+  assert.equal(result.ok, true);
+
+  if (!result.ok) {
+    throw new Error("Expected public shared trip client to succeed.");
+  }
+
+  const share = result.data.share as Record<string, unknown>;
+  const version = result.data.share.version as Record<string, unknown>;
+
+  assert.deepEqual(result.data.tripPlan, mockTripPlan);
+  assert.equal(share.sharedAt, "2026-06-09T00:00:01.000Z");
+  assert.equal("id" in share, false);
+  assert.equal("ownerUserId" in share, false);
+  assert.equal("tripPlanRecordId" in share, false);
+  assert.equal("tokenHash" in share, false);
+  assert.equal("accessCount" in share, false);
+  assert.equal(version.versionNumber, 1);
+  assert.equal("id" in version, false);
+  assert.equal("userId" in version, false);
+  assert.equal("tripPlanRecordId" in version, false);
 });

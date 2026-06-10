@@ -24,6 +24,8 @@ import {
   type TripPlanVersionRestoreFeedbackView,
 } from "@/lib/services/trip-version-history-view";
 
+import { ShareLinksPanel } from "./share-links-panel";
+
 type TripDetailState =
   | {
       status: "loading";
@@ -555,6 +557,7 @@ export function TripDetailPageClient({ id }: { id: string }) {
               tripPlan={detailState.detail.currentVersion.tripPlan}
               showDebugJson={false}
             />
+            <ShareLinksPanel tripPlanId={id} />
             <VersionHistoryPanel
               detail={detailState.detail}
               versionsState={versionsState}

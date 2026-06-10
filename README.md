@@ -241,6 +241,15 @@ Round 31 adds the minimum server-side share-link API loop:
 
 Share tokens are generated server-side and only `token_hash` plus a short `token_preview` are stored. Revoked, expired, missing, invalid, deleted-record, or cross-boundary shares return `404`. Public responses do not expose owner ids, email, token hashes, internal record fields, provider/session tokens, OAuth secrets, database connection strings, API keys, bearer tokens, authorization headers, SQL, or stack traces. This round still does not add share UI, a public share page, admin UI, complex permissions, or client-side database access. `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, and restore behavior remain unchanged.
 
+Round 32 adds the minimum share-link UI and public read-only page:
+
+- `/trips/[id]` shows an owner-only “分享链接” section after the saved snapshot. Logged-in owners can create a share link, copy the one-time link returned by the server, list safe share summaries, and revoke active links.
+- `/shared/trips/[token]` loads `GET /api/shared/trips/[token]` without login and displays the shared `TripPlan` snapshot in read-only mode.
+- Public share pages do not show save, version history, restore, revoke, create-share, edit, delete, or debug JSON actions.
+- Public share links are visible to anyone who has the URL. Users should share them carefully and revoke links that should no longer be accessible.
+- Invalid, revoked, expired, missing, or otherwise unavailable public links show the same unavailable message and do not reveal the specific reason.
+- This round still does not add admin UI, access-statistics UI, complex permissions, public editing/restore/delete operations, or client-side database access. Existing generate, compare, save, history, versions, and restore API behavior remains unchanged.
+
 ## Smoke Test
 
 部署后可运行：
@@ -271,7 +280,7 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 ## Current Not Implemented
 
 - Automatic save.
-- Version history UI, restore UI/buttons, share UI, or public share pages.
+- Public edit, restore, delete, save, version-history, share-management, or analytics operations.
 - Admin UI.
 - Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
 - Automatic save.

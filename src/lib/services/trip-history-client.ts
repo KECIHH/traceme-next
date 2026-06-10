@@ -74,6 +74,38 @@ export type SavedTripPlanVersionDetail = SavedTripPlanVersionSummary & {
   tripPlan: TripPlan;
 };
 
+export type SavedTripPlanShareSummary = {
+  id: string;
+  tokenPreview: string;
+  status: "active" | "revoked";
+  versionId: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatedTripPlanShareLink = {
+  share: SavedTripPlanShareSummary;
+  shareUrl?: string;
+  token?: string;
+};
+
+export type PublicSharedTrip = {
+  tripPlan: TripPlan;
+  share: {
+    sharedAt: string;
+    expiresAt: string | null;
+    version: {
+      versionNumber: number;
+      source: TripPlanSource;
+      generationMode: z.infer<typeof GenerationModeSchema>;
+      generatedAt: string;
+      createdAt: string;
+    };
+  };
+};
+
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 const ApiRecordSchema = z
@@ -166,6 +198,81 @@ const RestoreSuccessResponseSchema = z
     data: z
       .object({
         currentVersion: ApiVersionSummarySchema,
+      })
+      .strip(),
+  })
+  .strip();
+
+const ApiShareSummarySchema = z
+  .object({
+    id: z.string().min(1),
+    tokenPreview: z.string().min(1),
+    status: z.enum(["active", "revoked"]),
+    versionId: z.string().min(1),
+    expiresAt: z.string().nullable(),
+    revokedAt: z.string().nullable(),
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  })
+  .strip();
+
+const CreateShareLinkSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        share: ApiShareSummarySchema,
+        shareUrl: z.string().min(1).optional(),
+        token: z.string().min(1).optional(),
+      })
+      .strip()
+      .refine((data) => data.shareUrl !== undefined || data.token !== undefined),
+  })
+  .strip();
+
+const ShareLinksListSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        shares: z.array(ApiShareSummarySchema),
+      })
+      .strip(),
+  })
+  .strip();
+
+const RevokeShareLinkSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        share: ApiShareSummarySchema,
+      })
+      .strip(),
+  })
+  .strip();
+
+const PublicSharedTripSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        tripPlan: TripPlanSchema,
+        share: z
+          .object({
+            sharedAt: z.string().min(1),
+            expiresAt: z.string().nullable(),
+            version: z
+              .object({
+                versionNumber: z.number().int().positive(),
+                source: TripPlanSourceSchema,
+                generationMode: GenerationModeSchema,
+                generatedAt: z.string().min(1),
+                createdAt: z.string().min(1),
+              })
+              .strip(),
+          })
+          .strip(),
       })
       .strip(),
   })
@@ -288,6 +395,36 @@ async function postJson(path: string, body: unknown, fetcher: FetchLike) {
   };
 }
 
+async function patchJson(path: string, body: unknown, fetcher: FetchLike) {
+  let response: Response;
+
+  try {
+    response = await fetcher(path, {
+      method: "PATCH",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false as const,
+      error: {
+        kind: "network_error" as const,
+        message: toErrorMessage("network_error"),
+      },
+    };
+  }
+
+  return {
+    ok: true as const,
+    response,
+    json: await readJsonSafely(response),
+  };
+}
+
 function errorResultFromResponse(
   response: Response,
   json: unknown,
@@ -341,6 +478,133 @@ export async function listSavedTripPlans(
       data: {
         records: validationResult.data.data.records.map(toSavedTripPlanSummary),
       },
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function createShareLinkClient(
+  id: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<CreatedTripPlanShareLink>> {
+  const requestResult = await postJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/share-links`,
+    {},
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = CreateShareLinkSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function listShareLinksClient(
+  id: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ shares: SavedTripPlanShareSummary[] }>> {
+  const requestResult = await getJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/share-links`,
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = ShareLinksListSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function revokeShareLinkClient(
+  id: string,
+  shareId: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ share: SavedTripPlanShareSummary }>> {
+  const requestResult = await patchJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/share-links/${encodeURIComponent(shareId)}`,
+    { status: "revoked" },
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = RevokeShareLinkSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function getSharedTripClient(
+  token: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<PublicSharedTrip>> {
+  const requestResult = await getJson(
+    `/api/shared/trips/${encodeURIComponent(token)}`,
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = PublicSharedTripSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: validationResult.data.data,
     };
   }
 

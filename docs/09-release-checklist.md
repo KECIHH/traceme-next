@@ -20,9 +20,9 @@ npx tsc --noEmit
 - `npm run build` 不依赖浏览器端密钥。
 - `npx tsc --noEmit` 无类型错误。
 
-## Current Round 31 Status Note
+## Current Round 32 Status Note
 
-The round sections below are historical acceptance notes unless a later round supersedes them. As of Round 31, protected server-side versions and restore APIs are available, and share-link APIs are available for owner create/list/revoke plus public read-only token lookup. Version history UI, restore UI/buttons, share UI, public share pages, admin UI, and client-side database access remain unavailable.
+The round sections below are historical acceptance notes unless a later round supersedes them. As of Round 32, protected version history and restore UI are available, owner share-link UI is available on `/trips/[id]`, and `/shared/trips/[token]` is a public read-only share page. Admin UI, access-statistics UI, complex permission panels, public edit/restore/delete actions, and client-side database access remain unavailable.
 
 ## Round 22 Database Configuration Note
 
@@ -185,6 +185,30 @@ Release checks:
 - Create returns raw token/share URL once, but list/revoke/public responses do not return raw tokens or token hashes.
 - Revoked or expired public tokens return `404`.
 - Public responses do not expose owner ids, email, token hashes, internal record fields, provider/session tokens, OAuth secrets, password hashes, API keys, bearer tokens, authorization headers, raw provider responses, connection strings, SQL, or stack traces.
+
+## Round 32 Share UI And Public Read-Only Page
+
+Round 32 enables the minimum UI surface for the Round 31 share APIs:
+
+- `/trips/[id]` includes an owner-only “分享链接” section.
+- Owners can create a share link, copy the one-time share URL returned by the create API, list safe share summaries, and revoke an active link after confirmation.
+- Share lists must not display raw tokens or token hashes.
+- `/shared/trips/[token]` does not require login and renders a public read-only `TripPlan` snapshot for a valid active link.
+- Public pages must keep AI draft and human-verification wording visible.
+- Public pages must not show save, version history, restore, revoke, create-share, edit, delete, debug JSON, owner data, internal record/version/share fields, or token hashes.
+- Invalid, revoked, expired, missing, deleted-record, and otherwise unavailable public links must show the same unavailable message: `分享链接不可用或已失效`.
+- Public share URLs are readable by anyone who has the URL; owners should share carefully and revoke links when access is no longer intended.
+- Admin UI, access-statistics UI, complex permission panels, public write operations, and client-side database access remain unavailable.
+- `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, and restore behavior remains unchanged.
+
+Release checks:
+
+- `npm test`, `npm run lint`, `npm run build`, and `npx tsc --noEmit` all pass.
+- Share clients map `401`, `404`, and `500` safely and strip owner/internal fields.
+- Create client accepts only one-time `shareUrl` and/or `token`; list/revoke/public adapters do not expose raw tokens or token hashes.
+- Revoke uses `PATCH /api/travel-plans/[id]/share-links/[shareId]` with `{ status: "revoked" }`.
+- Public shared-trip adapter exposes only public metadata plus the `TripPlan` snapshot.
+- Browser acceptance for create/copy/open/revoke requires a real configured database and authenticated saved trip; if those are missing, record the limitation instead of marking it passed.
 
 ## Mock 模式验收
 
