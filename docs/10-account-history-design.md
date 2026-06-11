@@ -2,11 +2,11 @@
 
 ## Current Boundary
 
-TraceMe Next is currently a travel plan draft generation MVP. It does not have a database, user login, saved history, version history, rollback, or account workspace.
+Round 36 update: this document started as the design for future account, saved history, and version history work. That first implementation is now present in the personal beta: the project has a PostgreSQL-backed account/history skeleton, Auth.js login boundary, manual save, saved-trip list/detail pages, protected version APIs, version history UI, and restore behavior.
 
-This is intentional. The MVP first validates the generation loop: user input, server-side AI generation, `TripPlanSchema` validation, result display, Markdown export, and browser print/save-PDF. Adding account and storage too early would increase privacy, security, migration, backup, and operations work before the core travel plan contract is stable.
+The current gap is no longer "accounts do not exist"; it is feature completion around the account workspace: delete/restore polish, undo behavior, retention policy, clearer empty/error states, version notes/diff ideas, account settings, and more precise privacy controls.
 
-The existing `POST /api/travel-plans/generate` behavior must remain unchanged. It should continue returning a generated `TripPlan` for the current request only. Future saved-history APIs will sit beside it instead of changing its request or response contract.
+The existing `POST /api/travel-plans/generate` behavior must remain unchanged. It continues returning a generated `TripPlan` for the current request only. Saved-history APIs sit beside it instead of changing its request or response contract.
 
 ## Why Accounts and History Are Needed Later
 

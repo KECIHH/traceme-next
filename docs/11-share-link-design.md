@@ -2,11 +2,11 @@
 
 ## Current Boundary
 
-TraceMe Next does not currently implement share links.
+Round 36 update: this document started as the design for a future public read-only share feature. The first share-link loop is now implemented in the personal beta.
 
-The current saved-trip capability is account-scoped: saved records, version history, version detail, version append, and restore all require a logged-in user and owner-scoped access. Existing `generate`, `compare`, `save`, history, versions, and restore APIs must keep their current behavior. This document is only a product and technical design for a future public read-only share feature.
+The current saved-trip capability is account-scoped: saved records, version history, version detail, version append, restore, owner share-link creation, share-link listing, and share-link revoke all require a logged-in user and owner-scoped access. Public shared-trip viewing is read-only and available only through a valid fixed-version share token.
 
-No share API, share UI, database migration, admin tooling, map, weather, or search capability is introduced in this round.
+This document now serves as design background plus a reference for later share extensions. Current gaps include expiration controls, access statistics, password-protected links, account-level sharing settings, abuse/reporting workflow, and more granular permissions. Existing `generate`, `compare`, `save`, history, versions, restore, share, and public-share APIs must keep their current behavior.
 
 ## Product Goal
 

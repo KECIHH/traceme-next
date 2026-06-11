@@ -9,11 +9,17 @@
 - 旅行信息表单：支持出发地、目的地、日期、人数、预算口径、偏好和节奏。
 - 本地目的地推荐：使用静态推荐项回填目的地，不代表实时热度或实时价格。
 - 旅行计划生成：统一通过服务端 `POST /api/travel-plans/generate`。
+- 方案对比：主方案生成后，可生成轻量变体、节奏建议、预算风险和人工确认提示。
 - Provider 切换：支持 `AI_PROVIDER=mock` 和 `AI_PROVIDER=openai-compatible`。
 - 结构化结果展示：包含总览、每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、用户自行确认事项和免责声明。
 - 导出体验：支持复制全文、下载 Markdown，以及使用浏览器打印/保存 PDF。
+- 账号与历史：配置数据库和 Auth 后，支持登录、手动保存、我的行程列表和保存详情页。
+- 版本历史：保存详情页支持查看版本历史，并通过恢复旧版本创建新的当前版本。
+- 分享链接：保存详情页支持创建、复制、列出和撤销固定版本分享链接；公开分享页为只读视图。
 - 契约校验：请求和结果使用 Zod schema 校验，结果天数和用户确认事项有基础约束。
 - 错误提示：前端展示用户友好的错误文案，不展示底层 provider 响应或敏感配置。
+
+当前个人版功能完善路线图见 [docs/13-next-feature-roadmap.md](docs/13-next-feature-roadmap.md)。
 
 ## 技术栈
 
@@ -72,7 +78,7 @@ curl -fsSL https://raw.githubusercontent.com/KECIHH/traceme-next/main/scripts/de
 
 部署脚本会克隆或更新 `https://github.com/KECIHH/traceme-next.git`，执行 Docker Compose 构建和启动，并运行首页与 `POST /api/travel-plans/generate` smoke test。私有仓库或 SSH 部署可通过 `TRACEME_REPO_URL` 覆盖仓库地址。
 
-首次部署会在服务器项目目录创建未提交的 `.env` mock 示例。真实 AI 部署时，只在服务器 `.env` 中配置以下变量名对应的服务端值：
+首次部署会在服务器项目目录创建未提交的 `.env` mock 示例。真实 AI、数据库和 Auth 部署时，只在服务器 `.env` 中配置以下变量名对应的服务端值：
 
 ```env
 AI_PROVIDER=
@@ -80,6 +86,12 @@ AI_API_KEY=
 AI_MODEL=
 AI_CHAT_COMPLETIONS_URL=
 AI_REQUEST_TIMEOUT_MS=
+DATABASE_URL=
+AUTH_SECRET=
+AUTH_URL=
+AUTH_GITHUB_ID=
+AUTH_GITHUB_SECRET=
+AUTH_TRUST_HOST=
 APP_PORT=
 ```
 
@@ -280,8 +292,9 @@ node scripts/smoke-travel-api.mjs --base-url http://127.0.0.1:3000 --expect-prov
 ## Current Not Implemented
 
 - Automatic save.
+- Undo, hard-delete retention, account deletion, and fine-grained permission controls.
 - Public edit, restore, delete, save, version-history, share-management, or analytics operations.
 - Admin UI.
-- Maps, weather, web search, live ticket/hotel/transport/weather data, or server-side PDF export.
-- Automatic save.
+- Maps, weather, enhanced web search, live ticket/hotel/transport/weather data, or server-side PDF export.
+- User settings and data statistics.
 - Non-Chat-Completions/Responses-compatible third-party provider adapters.

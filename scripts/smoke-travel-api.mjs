@@ -2,6 +2,7 @@
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const EXPECTED_PROVIDERS = new Set(["mock", "openai-compatible", "missing-config"]);
+const HOMEPAGE_SIGNAL_TEXTS = ["迹遇 Next", "TraceMe Next"];
 const REQUIRED_VERIFY_CATEGORIES = [
   "ticketReservation",
   "openingHours",
@@ -90,6 +91,10 @@ function hasRequiredVerifyCategories(items) {
   return REQUIRED_VERIFY_CATEGORIES.every((category) => categories.has(category));
 }
 
+function hasHomepageSignal(text) {
+  return HOMEPAGE_SIGNAL_TEXTS.some((signalText) => text.includes(signalText));
+}
+
 function assertSuccessPayload(payload, expectedProvider) {
   if (payload?.ok !== true) {
     throw new Error("Expected ok=true response.");
@@ -159,7 +164,7 @@ async function main() {
     throw new Error(`Homepage returned HTTP ${homeResponse.status}.`);
   }
 
-  if (!homeText.includes("迹遇 Next")) {
+  if (!hasHomepageSignal(homeText)) {
     throw new Error("Homepage did not include the app signal text.");
   }
 
