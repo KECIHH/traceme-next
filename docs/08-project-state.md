@@ -1,3 +1,37 @@
+# Project State - MVP Round 44
+## Round 44 Current State
+- Round 44 is an E2E acceptance reinforcement and export-feedback polish round. It does not add product features, public API behavior, schema, migration, provider, admin, map, weather, search, deployment, domain, HTTPS, reverse proxy, hard-delete, client-database, or server-side PDF behavior.
+- Added `docs/16-round-44-real-e2e-acceptance.md` with a safe real-browser snippet for preparing a multi-version throwaway saved trip from an authenticated `/trips/[id]` detail page. The snippet uses same-origin browser requests, appends one valid test version through the existing protected versions API, and prints only safe counts plus next-step instructions.
+- Added an internal Markdown download helper that returns filename, MIME type, and contents while continuing to use the existing `formatTripPlanMarkdown(...)` formatter. The formatter business wording was not changed.
+- Updated result export feedback: manual-copy fallback now explains that the browser did not allow automatic copy and points to the textarea; Markdown download feedback says the browser download was triggered and points to the browser download list; browser print / save-PDF copy now states that this is browser print/save PDF, not server-side precision PDF export.
+- Added targeted coverage for Markdown download helper contents, filename sanitization, and export feedback boundary wording.
+
+## Round 44 Browser Recheck
+- Local browser recheck used `[本地验证 URL]` with an already authenticated `[测试账号]` session. Project docs continue to use placeholders only for environment, account, trip, and share-link details.
+- Browser recheck passed for logged-in navigation without owner email, generation with `[真实 AI Provider]`, generated result sections, no home-page debug JSON, save success, saved detail page, version-history panel presence, share panel presence, delete panel presence, export actions presence, copy manual fallback, Markdown download-trigger feedback, browser print/save-PDF feedback, share creation, and public read-only share page for a newly created share link.
+- Copy full text: automatic clipboard read returned empty in this browser run, but the manual-copy textarea was visible and contained non-empty Markdown with daily itinerary, user self-check items, and disclaimer, without `undefined` or `null`.
+- Markdown download: the in-app browser still reports downloads unsupported, so downloaded file contents could not be read from the download directory. The new helper test verifies the generated Markdown download contents are non-empty and contain daily itinerary, user self-check items, and disclaimer.
+- Print / save PDF: the print entry showed the clarified browser-print feedback. The system print dialog itself remains outside what this in-app browser environment can inspect.
+- Version restore UI: the saved test record had only one version and the UI has no append-version control. The documented browser-console snippet is ready for a real browser, but the in-app browser automation sandbox does not expose `fetch`, `XMLHttpRequest`, or `navigator`, so it could not execute the same-origin append snippet automatically in this environment.
+- Share revoke and delete / recently deleted / restore-deleted: share create and public read-only page were rechecked through browser UI. The revoke and delete flows rely on native confirmation dialogs; one revoke attempt blocked the in-app browser automation channel and required opening a new tab, so the browser pass did not complete revoke, delete, recently deleted, or restore-deleted. Existing API/client/source tests for revoke and soft delete / restore remain passing.
+- Safety recheck: reviewed browser-visible page text in the completed paths did not show real IPs, connection strings, secrets, bearer/header values, token hashes, owner email, SQL details, or stack traces. Project docs for this round do not include raw share links or account identities.
+
+## Round 44 Verification
+- Targeted tests: `node --conditions=react-server --import tsx --test tests/core-contracts.test.ts tests/export-actions-ui.test.ts` passed, 14 tests.
+- `npx tsc --noEmit`: passed before and after full verification.
+- `npm test`: passed, 117 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route output remained the existing personal-workbench pages and API routes.
+
+## Round 44 Boundaries
+- No management backend, map, weather, search, deployment, domain, HTTPS, reverse proxy, preproduction rollout, hard delete, client-side database access, server-side PDF, precision PDF export, schema, migration, provider, or core API contract change was added.
+- Existing dirty working-tree files from earlier deployment / preproduction and documentation work were not deleted, restored, staged, committed, or bundled into this round.
+- No `.env`, `.env.local`, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session value, bearer/header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or owner email was intentionally recorded in docs.
+
+## Round 44 Record Time
+- Date: 2026-06-12 (Asia/Shanghai)
+- Stage: real E2E acceptance reinforcement and export-feedback polish
+
 # Project State - MVP Round 43
 ## Round 43 Review Fix
 - Scope: fixed only confirmed Round 43 P1 issues from review. No new feature, schema, migration, provider, deployment, domain, HTTPS, reverse proxy, admin, map, weather, or search work was added.

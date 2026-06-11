@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { formatTripPlanMarkdown } from "@/lib/markdown/format-trip-plan-markdown";
+import { buildTripPlanMarkdownDownload } from "@/lib/markdown/trip-plan-markdown-download";
 import type { TripPlan } from "@/lib/schemas/trip";
 import {
   buildSavingSaveTripPlanActionState,
@@ -22,21 +23,6 @@ type FeedbackState = {
   type: "success" | "error";
   message: string;
 } | null;
-
-function sanitizeFileNamePart(value: string) {
-  return value
-    .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^\.+|\.+$/g, "");
-}
-
-function getMarkdownFileName(plan: TripPlan) {
-  const destination = sanitizeFileNamePart(plan.input.destination);
-  const prefix = destination ? `${destination}-` : "";
-
-  return `${prefix}旅行计划-${plan.input.startDate}.md`;
-}
 
 function copyTextWithTextArea(text: string) {
   const textArea = document.createElement("textarea");
@@ -135,22 +121,22 @@ export function ResultActions({ tripPlan, showSaveAction = false }: ResultAction
       setManualCopyText(markdown);
       showFeedback({
         type: "success",
-        message: "已展开 Markdown 全文，可手动复制。",
+        message: "浏览器未允许自动复制，已展开 Markdown 全文；请从下方文本框手动复制。",
       });
     }
   }
 
   function handleDownload() {
     try {
-      const markdown = formatTripPlanMarkdown(tripPlan);
-      const blob = new Blob([markdown], {
-        type: "text/markdown;charset=utf-8",
+      const download = buildTripPlanMarkdownDownload(tripPlan);
+      const blob = new Blob([download.contents], {
+        type: download.mimeType,
       });
       const objectUrl = URL.createObjectURL(blob);
 
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = getMarkdownFileName(tripPlan);
+      link.download = download.filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -158,7 +144,7 @@ export function ResultActions({ tripPlan, showSaveAction = false }: ResultAction
 
       showFeedback({
         type: "success",
-        message: "已开始下载 Markdown 文件。",
+        message: "已触发 Markdown 下载，请在浏览器下载列表中查看 .md 文件。",
       });
     } catch {
       showFeedback({
@@ -180,7 +166,8 @@ export function ResultActions({ tripPlan, showSaveAction = false }: ResultAction
     setManualCopyText("");
     showFeedback({
       type: "success",
-      message: "即将打开浏览器打印窗口，可在打印对话框中选择保存为 PDF。",
+      message:
+        "即将打开浏览器打印窗口；如需 PDF，请在浏览器或系统打印对话框中选择保存为 PDF。这不是服务端精排 PDF。",
     });
     window.print();
   }
@@ -229,7 +216,7 @@ export function ResultActions({ tripPlan, showSaveAction = false }: ResultAction
             {showSaveAction ? "保存与导出" : "导出当前快照"}
           </p>
           <p className="mt-1 break-words text-sm leading-6 text-emerald-800">
-            可复制全文、下载 Markdown，或使用浏览器打印/保存 PDF。当前内容仍是 AI
+            可复制全文、下载 Markdown，或调用浏览器打印并在系统对话框中保存 PDF；这不是服务端精排 PDF。当前内容仍是 AI
             旅行计划草稿，实时或易变信息请在出发前人工确认。
           </p>
         </div>
@@ -327,7 +314,7 @@ export function ResultActions({ tripPlan, showSaveAction = false }: ResultAction
       {manualCopyText ? (
         <div className="mt-3">
           <p className="mb-2 break-words text-sm leading-6 text-emerald-900">
-            已展开 Markdown 全文，可手动复制。
+            浏览器未允许自动复制，已展开 Markdown 全文；请从下方文本框手动复制。
           </p>
           <textarea
             ref={manualCopyTextAreaRef}

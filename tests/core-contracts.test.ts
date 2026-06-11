@@ -4,6 +4,7 @@ import test from "node:test";
 import { POST as compareTravelPlansPost } from "@/app/api/travel-plans/compare/route";
 import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { formatTripPlanMarkdown } from "@/lib/markdown/format-trip-plan-markdown";
+import { buildTripPlanMarkdownDownload } from "@/lib/markdown/trip-plan-markdown-download";
 import {
   generateMockTravelPlanComparisonJson,
   generateMockTripPlanJson,
@@ -130,6 +131,35 @@ test("formatTripPlanMarkdown includes key sections and omits undefined/null lite
   }
 
   assert.doesNotMatch(markdown, /\bundefined\b|\bnull\b/);
+});
+
+test("buildTripPlanMarkdownDownload returns safe file metadata and formatter content", async () => {
+  const plan = await buildValidTripPlan();
+  const download = buildTripPlanMarkdownDownload(plan);
+
+  assert.equal(download.contents, formatTripPlanMarkdown(plan));
+  assert.equal(download.mimeType, "text/markdown;charset=utf-8");
+  assert.match(download.filename, /\.md$/);
+  assert.ok(download.contents.length > 0);
+
+  for (const expectedText of ["每日行程", "用户自行确认事项", "免责声明"]) {
+    assert.match(download.contents, new RegExp(expectedText));
+  }
+
+  assert.doesNotMatch(download.contents, /\bundefined\b|\bnull\b/);
+});
+
+test("buildTripPlanMarkdownDownload sanitizes path and control characters in filenames", async () => {
+  const plan = await buildValidTripPlan();
+  const unsafeDestinationPlan = cloneTripPlan(plan);
+
+  unsafeDestinationPlan.input.destination = '..\\测试/目的地<>:"|?*\u0000';
+
+  const download = buildTripPlanMarkdownDownload(unsafeDestinationPlan);
+
+  assert.match(download.filename, /\.md$/);
+  assert.doesNotMatch(download.filename, /[<>:"\/\\|?*\u0000-\u001f\u007f]/);
+  assert.doesNotMatch(download.filename, /^\.+/);
 });
 
 test("getBudgetSummary keeps total and per-person budget semantics", () => {
