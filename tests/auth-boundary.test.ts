@@ -71,7 +71,12 @@ test("account API summary exposes only non-sensitive fields", async () => {
   const json = (await response.json()) as {
     ok: true;
     data: {
-      user: NonNullable<typeof currentUser>;
+      user: {
+        id: string;
+        name: string | null;
+        image: string | null;
+        email?: unknown;
+      };
     };
   };
 
@@ -83,9 +88,16 @@ test("account API summary exposes only non-sensitive fields", async () => {
   });
   assert.equal(response.status, 200);
   assert.equal(json.ok, true);
-  assert.deepEqual(json.data.user, currentUser);
+  assert.deepEqual(json.data.user, {
+    id: "123e4567-e89b-12d3-a456-426614174000",
+    name: "TraceMe Tester",
+    image: "https://example.test/avatar.png",
+  });
+  assert.equal("email" in json.data.user, false);
+  assert.doesNotMatch(JSON.stringify(json), /user@example\.test/i);
 
   for (const forbiddenField of [
+    "email",
     "access_token",
     "refresh_token",
     "sessionToken",

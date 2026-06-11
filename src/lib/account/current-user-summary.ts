@@ -5,6 +5,8 @@ export type CurrentUser = {
   image: string | null;
 };
 
+export type CurrentUserAccountSummary = Pick<CurrentUser, "id" | "name" | "image">;
+
 export type CurrentUserNavigationSummary = {
   primaryLabel: string;
   secondaryLabel: string | null;
@@ -23,7 +25,7 @@ export type AccountMeResponse =
   | {
       ok: true;
       data: {
-        user: CurrentUser;
+        user: CurrentUserAccountSummary;
       };
     }
   | {
@@ -65,11 +67,10 @@ export function toCurrentUserNavigationSummary(
   }
 
   const name = normalizeNavigationLabel(sessionUser.name);
-  const email = normalizeNavigationLabel(sessionUser.email);
 
   return {
-    primaryLabel: name ?? email ?? "已登录",
-    secondaryLabel: name !== null && email !== null && email !== name ? email : null,
+    primaryLabel: name ?? "已登录",
+    secondaryLabel: null,
   };
 }
 
@@ -95,7 +96,11 @@ export function createAccountMeResponse(session: AuthSessionLike) {
   const body: AccountMeResponse = {
     ok: true,
     data: {
-      user: currentUser,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        image: currentUser.image,
+      },
     },
   };
 

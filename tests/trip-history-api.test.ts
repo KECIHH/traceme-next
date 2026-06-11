@@ -18,6 +18,7 @@ import {
   listDeletedTripPlanRecordsByUser,
   listTripPlanVersionsForRecord,
   restoreDeletedTripPlanRecord,
+  revokeTripPlanShareLink,
   softDeleteTripPlanRecord,
 } from "@/lib/server/trip-history/repository";
 import {
@@ -2003,6 +2004,65 @@ test("share repository stores only token hashes and creates fixed-version links"
   assert.equal(queries[0]?.values?.[4], expiresAt);
   assert.equal(result.share.versionId, versionId);
   assert.equal(result.share.tokenPreview, result.token.slice(-8));
+});
+
+test("share repository revokes owner links for undeleted records", async () => {
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const revokedAt = "2026-06-09T00:05:00.000Z";
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/UPDATE trip_plan_shares/i.test(text)) {
+        return {
+          rows: [
+            {
+              id: shareId,
+              owner_user_id: currentUser.id,
+              trip_plan_record_id: recordId,
+              version_id: versionId,
+              token_preview: validShareToken.slice(-8),
+              status: "revoked",
+              expires_at: null,
+              revoked_at: revokedAt,
+              created_at: "2026-06-09T00:00:01.000Z",
+              updated_at: revokedAt,
+              last_accessed_at: null,
+              access_count: 0,
+            },
+          ] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+
+  const share = await revokeTripPlanShareLink({
+    userId: currentUser.id,
+    tripPlanRecordId: recordId,
+    shareId,
+    db,
+  });
+
+  assert.notEqual(share, null);
+  assert.equal(share?.status, "revoked");
+  assert.equal(share?.revokedAt, revokedAt);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0]?.text ?? "", /UPDATE trip_plan_shares/i);
+  assert.match(
+    queries[0]?.text ?? "",
+    /WHERE id = \$1\s+AND trip_plan_record_id = \$2\s+AND owner_user_id = \$3/i,
+  );
+  assert.match(queries[0]?.text ?? "", /EXISTS\s+\(\s+SELECT 1\s+FROM trip_plan_records records/i);
+  assert.match(queries[0]?.text ?? "", /records\.deleted_at IS NULL/i);
+  assert.deepEqual(queries[0]?.values, [shareId, recordId, currentUser.id]);
 });
 
 test("public share repository hashes tokens, filters revoked or expired links, and records access", async () => {

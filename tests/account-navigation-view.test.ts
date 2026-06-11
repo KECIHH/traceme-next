@@ -31,9 +31,10 @@ test("current user navigation summary keeps only safe display labels", () => {
 
   assert.deepEqual(summary, {
     primaryLabel: "TraceMe Traveler",
-    secondaryLabel: "traveler@example.test",
+    secondaryLabel: null,
   });
   assertNoSensitiveText(summary);
+  assert.doesNotMatch(JSON.stringify(summary), /traveler@example\.test/i);
 });
 
 test("account nav builds stable home, trips, and login callback routes", () => {
@@ -80,7 +81,7 @@ test("account nav degrades without configured auth and avoids invalid auth route
 test("account nav uses safe authenticated labels and root sign-out redirect", () => {
   const user: CurrentUserNavigationSummary = {
     primaryLabel: "TraceMe Traveler",
-    secondaryLabel: "traveler@example.test",
+    secondaryLabel: null,
   };
   const view = buildAccountNavView({
     authConfigured: true,
@@ -91,7 +92,7 @@ test("account nav uses safe authenticated labels and root sign-out redirect", ()
   assert.equal(view.isHomeActive, true);
   assert.equal(view.isAuthenticated, true);
   assert.equal(view.displayName, "TraceMe Traveler");
-  assert.equal(view.secondaryLabel, "traveler@example.test");
+  assert.equal(view.secondaryLabel, null);
   assert.equal(view.signInHref, null);
   assert.equal(view.signInTarget, null);
   assert.equal(view.signInRel, null);
@@ -99,4 +100,5 @@ test("account nav uses safe authenticated labels and root sign-out redirect", ()
   assert.equal(view.canSignOut, true);
   assert.equal(view.signOutRedirectTo, "/");
   assertNoSensitiveText(view);
+  assert.doesNotMatch(JSON.stringify(view), /traveler@example\.test/i);
 });

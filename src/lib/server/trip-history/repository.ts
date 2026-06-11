@@ -1099,31 +1099,34 @@ export async function revokeTripPlanShareLink(input: RevokeTripPlanShareLinkInpu
   const db = getDb(input.db);
   const result = await db.query<TripPlanShareDbRow>(
     `
-      UPDATE trip_plan_shares shares
+      UPDATE trip_plan_shares
       SET
         status = 'revoked',
-        revoked_at = COALESCE(shares.revoked_at, now()),
+        revoked_at = COALESCE(revoked_at, now()),
         updated_at = now()
-      FROM trip_plan_records records
-      WHERE shares.id = $1
-        AND shares.trip_plan_record_id = $2
-        AND shares.owner_user_id = $3
-        AND records.id = shares.trip_plan_record_id
-        AND records.user_id = shares.owner_user_id
-        AND records.deleted_at IS NULL
+      WHERE id = $1
+        AND trip_plan_record_id = $2
+        AND owner_user_id = $3
+        AND EXISTS (
+          SELECT 1
+          FROM trip_plan_records records
+          WHERE records.id = trip_plan_shares.trip_plan_record_id
+            AND records.user_id = trip_plan_shares.owner_user_id
+            AND records.deleted_at IS NULL
+        )
       RETURNING
-        shares.id,
-        shares.owner_user_id,
-        shares.trip_plan_record_id,
-        shares.version_id,
-        shares.token_preview,
-        shares.status,
-        shares.expires_at,
-        shares.revoked_at,
-        shares.created_at,
-        shares.updated_at,
-        shares.last_accessed_at,
-        shares.access_count
+        id,
+        owner_user_id,
+        trip_plan_record_id,
+        version_id,
+        token_preview,
+        status,
+        expires_at,
+        revoked_at,
+        created_at,
+        updated_at,
+        last_accessed_at,
+        access_count
     `,
     [shareId, tripPlanRecordId, userId],
   );

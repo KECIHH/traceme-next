@@ -1,3 +1,117 @@
+# Project State - MVP Round 43
+## Round 43 Review Fix
+- Scope: fixed only confirmed Round 43 P1 issues from review. No new feature, schema, migration, provider, deployment, domain, HTTPS, reverse proxy, admin, map, weather, or search work was added.
+- Fixed owner email exposure in authenticated account surfaces: global navigation now uses the safe display name or generic logged-in label, and `/api/account/me` returns only the non-email account summary fields needed by the app boundary.
+- Fixed owner share revoke for active share links by keeping the same protected API contract and tightening the repository update path for the current owner, current trip record, and undeleted record boundary.
+- Added targeted regression coverage for safe account/navigation summaries and owner revoke of undeleted share links.
+- Existing dirty working-tree files outside this fix were not deleted, restored, staged, committed, or regrouped. `docs/15-worktree-handoff.md` dirty-file grouping was not modified.
+
+## Round 43 Review Fix E2E Recheck
+- Local browser recheck used `[本地验证 URL]` with an already authenticated `[测试账号]` session. Environment values, account identity, trip ids, public share URLs, raw share tokens, session values, and provider endpoints were not recorded.
+- Browser recheck passed for logged-in state without owner email in page text, generation, save, `/trips` listing, saved detail snapshot, manual-copy fallback, print entry, share create, public read-only share page, share revoke, revoked public API/page unavailable state, delete, normal list hiding deleted trip, deleted detail unavailable state, recently deleted restore, normal list showing restored trip again, and old share link remaining unavailable after restore.
+- Copy full text: browser clipboard was readable but returned empty text in this run; the manual-copy fallback textarea was visible and contained daily itinerary, user self-check items, and disclaimer.
+- Markdown download: still limited by the in-app browser environment. Triggering the download reported downloads unsupported and reset browser automation, so file contents were not verified after the fix.
+- Version restore: not re-run through browser UI in the review-fix pass because the new browser-created record had only one version and the existing UI has no append-version control. The earlier Round 43 protected API continuation for append/restore remains the recorded coverage for version behavior.
+- Safety recheck: reviewed page text and checked public/protected API responses used in the recheck did not expose real IPs, connection strings, secrets, bearer/authorization tokens, `tokenHash`, owner email, SQL details, or stack traces.
+
+## Round 43 Review Fix Verification
+- Targeted tests: `node --conditions=react-server --import tsx --test tests/auth-boundary.test.ts tests/account-navigation-view.test.ts tests/trip-history-api.test.ts` passed, 52 tests.
+- `npm test`: passed, 113 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route output remained the existing personal-workbench pages and API routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 43 Current State
+- Round 43 is a real-login browser E2E acceptance round for the personal travel-planning workbench. It does not add product functionality and does not intentionally change business code.
+- Required project documents were read before execution: `docs/00-project-brief-and-roadmap.md`, this file, and `docs/15-worktree-handoff.md`.
+- Preconditions verified: `[测试数据库]` was reachable, latest migrations were already applied, required tables were present, `[本地验证 URL]` served the app, and the browser had a real authenticated `[测试账号]` session. Environment values and account details were not recorded.
+- `npm run db:migrate` passed before E2E: all three migrations were skipped as already applied, and required auth/history/share tables were present.
+- Browser E2E passed for login state, generation, save, `/trips` listing, saved-trip detail snapshot, copy full text, and print entry. The generated plan used `[真实 AI Provider]`.
+- Saved-trip detail showed the complete TripPlan snapshot sections: overview/basic information, daily itinerary, attractions, food, accommodation, transportation, budget, packing checklist, risk reminders, user self-check items, and disclaimer.
+- Copy full text was verified through a readable browser clipboard. The copied Markdown was non-empty, included daily itinerary, user self-check items, and disclaimer, and did not contain `undefined` or `null`.
+- Print / save PDF entry was verified as clickable and showed page feedback. The system print dialog itself could not be inspected in the in-app browser environment.
+- Markdown download was not fully verified. The download button was present, but the in-app browser reported downloads as unsupported and reset the browser automation session before a download file or page feedback could be inspected.
+- After the browser automation session became unavailable, remaining owner workflow checks were continued through existing protected API endpoints using the current `[测试账号]` session without printing session tokens or share tokens. This API continuation verified version append / restore, share create / public API read, delete, recently deleted, and restore-deleted state transitions, but it is not counted as full browser UI coverage for those later owner actions.
+- Version history API continuation passed: the test record started with one version, a test version was appended through the existing protected version API, restoring an older version succeeded, and restore created a new version rather than overwriting old versions.
+- Share create API continuation passed: owner share-list response did not expose `tokenHash` or the raw share token, share copy material was created only in the create response, and the public share API returned a read-only data shape without owner operations.
+- Initial share revoke did not pass. Repeated PATCH requests to the existing revoke endpoint for newly created active shares returned `404`, while the owner list still showed active shares. This was fixed in the Round 43 review-fix pass after user confirmation for P1 fixes.
+- Delete / recently deleted / restore-deleted API continuation passed: deleting hid the record from normal `/trips` API results, made detail unavailable, made the old public share unavailable, added the record to deleted results, restore-deleted removed it from deleted results, returned it to normal results, and kept old share links unavailable.
+- Initial security check was mixed: protected API responses checked in the first pass did not expose connection strings, secrets, `tokenHash`, authorization tokens, SQL details, or stack traces, but the authenticated browser page showed an owner email in the global account summary. This was fixed in the Round 43 review-fix pass.
+
+## Round 43 Boundaries
+- No new feature, business logic, API contract, schema, migration, provider, Auth, database, deployment, domain, HTTPS, reverse proxy, admin, map, weather, search, or productionization work was added.
+- No `.env`, `.env.local`, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or owner email was intentionally recorded in docs.
+- Existing dirty working-tree files were not deleted, restored, staged, committed, or regrouped. `docs/15-worktree-handoff.md` dirty-file grouping was not modified.
+
+## Round 43 Verification
+- `npm run db:migrate`: passed; migrations already applied and required tables present.
+- Browser E2E passed: logged-in state, generation with `[真实 AI Provider]`, save, `/trips` list, detail snapshot, copy full text, and print entry.
+- Browser E2E limited: Markdown download file and page feedback could not be verified because the in-app browser does not support downloads and reset the automation session.
+- Browser E2E incomplete after automation reset: version restore, share create/public/revoke, delete, recently deleted, and restore were continued through protected APIs instead of browser UI.
+- Protected API continuation passed: version append/restore, share create/public read, delete, recently deleted, restore-deleted, and old share remaining unavailable after restore.
+- Initial protected API continuation failed: share revoke returned `404` for newly created active shares. The review-fix browser recheck passed share create, revoke, and revoked-link unavailable behavior.
+- Initial safety scan result: protected API responses were sanitized, but authenticated page text exposed owner email in the account summary. The review-fix pass removed owner email from authenticated account surfaces and rechecked page text.
+- `npm test`: passed, 112 tests.
+- `npm run lint`: passed.
+- `npm run build`: first attempt failed on a corrupted generated `.next/dev` type cache; after stopping the local dev server and clearing generated `.next/dev` cache, rerun passed and route output included the expected personal-workbench pages and API routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 43 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: real-login browser E2E acceptance round 43
+
+# Project State - MVP Round 42
+## Round 42 Current State
+- Round 42 is a worktree ownership and real E2E preparation round. It does not add product functionality.
+- Current main line remains the personal travel-planning workbench: generation, manual save, my trips, detail, version restore, fixed-version share links, public read-only pages, and soft delete / restore-deleted are the active product workflow.
+- This round records the dirty working tree so future personal-workbench commits do not accidentally include old deployment / preproduction material.
+- Added `docs/15-worktree-handoff.md` as the handoff source for current dirty-file ownership, suggested commit batches, files that should not be bundled into personal-workbench feature commits, and the next real-login browser E2E checklist.
+- No source code, API route, schema, database behavior, UI behavior, deployment behavior, domain, HTTPS, reverse proxy, admin, map, weather, or search feature was changed in this round.
+
+## Round 42 Git Status Snapshot
+- Command run before documentation edits: `git status --short --branch`.
+- Branch line: `## codex/round-41-workbench-acceptance...origin/codex/round-41-workbench-acceptance`.
+- Modified files at start of round: `.env.local.example`, `README.md`, `docker-compose.yml`, `docs/09-release-checklist.md`, `docs/10-account-history-design.md`, `docs/11-share-link-design.md`, `docs/12-production-ops-design.md`, `scripts/deploy-docker-compose.sh`, and `scripts/smoke-travel-api.mjs`.
+- Untracked files at start of round: `Caddyfile` and `tests/preproduction-infrastructure.test.ts`.
+
+## Round 42 Dirty Worktree Ownership
+- A. Current personal-workbench mainline changes: none identified in the dirty set.
+- B. Old deployment / preproduction changes: `.env.local.example`, `docker-compose.yml`, `Caddyfile`, and `scripts/deploy-docker-compose.sh`.
+- C. Documentation / roadmap changes: `README.md`, `docs/09-release-checklist.md`, `docs/10-account-history-design.md`, `docs/11-share-link-design.md`, `docs/12-production-ops-design.md`, this file, and `docs/15-worktree-handoff.md`.
+- D. Test / script changes: `scripts/smoke-travel-api.mjs` and `tests/preproduction-infrastructure.test.ts`.
+- E. Changes needing user ownership confirmation: none currently required. `README.md` is treated as documentation for this handoff.
+
+## Round 42 Dirty Worktree Risk
+- The working tree intentionally contains old deployment / preproduction files, documentation updates, and test/script updates at the same time.
+- Future personal-workbench feature commits should not include `.env.local.example`, `docker-compose.yml`, `Caddyfile`, or `scripts/deploy-docker-compose.sh` unless that future round explicitly restarts deployment / preproduction work.
+- Future personal-workbench feature commits should review `scripts/smoke-travel-api.mjs` and `tests/preproduction-infrastructure.test.ts` separately because they support preproduction infrastructure checks, not the current product UI flow.
+- This round does not revert, delete, reset, checkout, clean, stage, commit, or otherwise resolve those existing changes.
+
+## Round 42 E2E Preparation
+- Real browser E2E is prepared as a checklist only in `docs/15-worktree-handoff.md`.
+- Required preconditions before actual E2E: a real authenticated browser session, a controlled test database, applied migrations, Auth variables configured for the test environment, a safe AI provider mode, and permission to create/revoke public share links in that test environment.
+- Planned real E2E coverage: login, generation, save, my trips, detail, version restore, share create / public page / revoke, delete / recently deleted / restore, copy, Markdown download, and print entry.
+- No browser E2E was run in this round because the current instruction is preparation and no real login session plus test database was confirmed for this browser.
+
+## Round 42 Boundaries
+- Documentation-only handoff and checklist work.
+- No new feature implementation.
+- No business logic, API, schema, migration, database, Auth, provider, or UI behavior change.
+- No preproduction, domain, HTTPS, reverse proxy, or production rollout work.
+- No admin backend, maps, weather, search, external-data workflow, or hard-delete behavior.
+- No `.env`, `.env.local`, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+
+## Round 42 Verification
+- `npm test`: passed, 112 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route table remains the existing personal-workbench and API surface.
+- `npx tsc --noEmit`: passed.
+- Browser E2E was not run in this round because the work was limited to ownership handoff and no real logged-in session plus usable test database was confirmed.
+
+## Round 42 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: dirty worktree ownership and real E2E preparation round 42
+
 # Project State - MVP Round 41
 ## Round 41 Current State
 - Round 41 is a personal-workbench usability验收与小修 round. It tightened the current mainline pages (`/`, `/trips`, `/trips/[id]`, `/trips/deleted`, `/shared/trips/[token]`) without changing core API behavior.
