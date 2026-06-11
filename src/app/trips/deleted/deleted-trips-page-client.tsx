@@ -4,30 +4,31 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-  deleteTripPlanClient,
   getSavedTripPlanSourceLabel,
-  listSavedTripPlans,
-  type SavedTripPlanSummary,
+  listDeletedTripPlansClient,
+  restoreDeletedTripPlanClient,
+  type DeletedTripPlanSummary,
   type TripHistoryClientError,
 } from "@/lib/services/trip-history-client";
 
-type TripsPageState =
+type DeletedTripsPageState =
   | {
       status: "loading";
     }
   | {
       status: "success";
-      records: SavedTripPlanSummary[];
+      records: DeletedTripPlanSummary[];
     }
   | {
       status: "error";
       error: TripHistoryClientError;
     };
 
-type DeleteFeedback =
+type RestoreFeedback =
   | {
       tone: "success";
       message: string;
+      restoredId: string;
     }
   | {
       tone: "error";
@@ -60,23 +61,23 @@ function LoginGuide() {
     <section className="rounded-md border border-emerald-200 bg-white p-5 shadow-sm">
       <p className="text-sm font-medium text-emerald-700">需要登录</p>
       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-        登录后查看我的行程
+        登录后查看最近删除
       </h2>
       <p className="mt-3 text-sm leading-6 text-zinc-600">
-        这里只显示当前登录账号已经保存的行程。未登录时不会加载或展示任何历史数据。
+        这里只显示当前登录账号在恢复窗口内可以查看的已删除行程摘要。
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <a
-          href={`/api/auth/signin?callbackUrl=${encodeURIComponent("/trips")}`}
+          href={`/api/auth/signin?callbackUrl=${encodeURIComponent("/trips/deleted")}`}
           className="inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
         >
           登录
         </a>
         <Link
-          href="/"
+          href="/trips"
           className="inline-flex rounded-md bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          返回生成页
+          返回我的行程
         </Link>
       </div>
     </section>
@@ -86,24 +87,16 @@ function LoginGuide() {
 function EmptyState() {
   return (
     <section className="rounded-md border border-dashed border-zinc-300 bg-white/75 p-6 text-center">
-      <h2 className="text-xl font-semibold text-zinc-950">当前还没有保存的行程</h2>
+      <h2 className="text-xl font-semibold text-zinc-950">暂无最近删除的行程</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-600">
-        生成页面不会自动保存行程；只有通过受保护保存 API 创建过的记录才会出现在这里。
+        删除后的行程会暂时显示在这里，并可在 30 天内恢复。
       </p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <Link
-          href="/"
-          className="inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-        >
-          去生成计划
-        </Link>
-        <Link
-          href="/trips/deleted"
-          className="inline-flex rounded-md bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          最近删除
-        </Link>
-      </div>
+      <Link
+        href="/trips"
+        className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        返回我的行程
+      </Link>
     </section>
   );
 }
@@ -111,20 +104,20 @@ function EmptyState() {
 function ErrorState({ error }: { error: TripHistoryClientError }) {
   return (
     <section className="rounded-md border border-red-200 bg-red-50 p-5">
-      <p className="text-sm font-semibold text-red-900">无法加载我的行程</p>
+      <p className="text-sm font-semibold text-red-900">无法加载最近删除</p>
       <p className="mt-2 text-sm leading-6 text-red-800">{error.message}</p>
     </section>
   );
 }
 
-function TripRecordCard({
+function DeletedTripRecordCard({
   record,
-  isDeleting,
-  onDelete,
+  isRestoring,
+  onRestore,
 }: {
-  record: SavedTripPlanSummary;
-  isDeleting: boolean;
-  onDelete(record: SavedTripPlanSummary): void;
+  record: DeletedTripPlanSummary;
+  isRestoring: boolean;
+  onRestore(record: DeletedTripPlanSummary): void;
 }) {
   return (
     <article className="min-w-0 rounded-md border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-emerald-200">
@@ -134,33 +127,23 @@ function TripRecordCard({
             {getSavedTripPlanSourceLabel(record.source)}
           </p>
           <h2 className="mt-2 break-words text-xl font-semibold tracking-tight text-zinc-950">
-            <Link href={`/trips/${record.id}`} className="hover:text-emerald-700">
-              {record.title}
-            </Link>
+            {record.title}
           </h2>
           <p className="mt-2 break-words text-sm leading-6 text-zinc-600">
             {record.departureCity} → {record.destination}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-          <Link
-            href={`/trips/${record.id}`}
-            className="rounded-md bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-          >
-            查看详情
-          </Link>
-          <button
-            type="button"
-            onClick={() => onDelete(record)}
-            disabled={isDeleting}
-            className="rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-red-700 ring-1 ring-red-200 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 disabled:ring-zinc-200"
-          >
-            {isDeleting ? "正在删除..." : "删除"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onRestore(record)}
+          disabled={isRestoring}
+          className="shrink-0 rounded-md bg-emerald-700 px-3 py-2 text-center text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-zinc-400"
+        >
+          {isRestoring ? "正在恢复..." : "恢复"}
+        </button>
       </div>
 
-      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-md bg-zinc-50 p-3">
           <dt className="font-medium text-zinc-500">出发 / 返回日期</dt>
           <dd className="mt-1 break-words font-semibold text-zinc-900">
@@ -170,6 +153,12 @@ function TripRecordCard({
         <div className="rounded-md bg-zinc-50 p-3">
           <dt className="font-medium text-zinc-500">天数</dt>
           <dd className="mt-1 font-semibold text-zinc-900">{formatDays(record.days)}</dd>
+        </div>
+        <div className="rounded-md bg-zinc-50 p-3">
+          <dt className="font-medium text-zinc-500">删除时间</dt>
+          <dd className="mt-1 break-words font-semibold text-zinc-900">
+            {formatDateTime(record.deletedAt)}
+          </dd>
         </div>
         <div className="rounded-md bg-zinc-50 p-3">
           <dt className="font-medium text-zinc-500">创建时间</dt>
@@ -188,16 +177,16 @@ function TripRecordCard({
   );
 }
 
-export function TripsPageClient() {
-  const [state, setState] = useState<TripsPageState>({ status: "loading" });
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteFeedback, setDeleteFeedback] = useState<DeleteFeedback | null>(null);
+export function DeletedTripsPageClient() {
+  const [state, setState] = useState<DeletedTripsPageState>({ status: "loading" });
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [restoreFeedback, setRestoreFeedback] = useState<RestoreFeedback | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadTrips() {
-      const result = await listSavedTripPlans();
+    async function loadDeletedTrips() {
+      const result = await listDeletedTripPlansClient();
 
       if (!isMounted) {
         return;
@@ -217,30 +206,30 @@ export function TripsPageClient() {
       });
     }
 
-    void loadTrips();
+    void loadDeletedTrips();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  async function handleDelete(record: SavedTripPlanSummary) {
+  async function handleRestore(record: DeletedTripPlanSummary) {
     const confirmed = window.confirm(
-      `确认删除“${record.title}”吗？删除后会移出我的行程，可在 30 天内到最近删除恢复。`,
+      `确认恢复“${record.title}”吗？恢复后会重新回到我的行程，旧分享链接不会自动恢复。`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    setDeletingId(record.id);
-    setDeleteFeedback(null);
+    setRestoringId(record.id);
+    setRestoreFeedback(null);
 
-    const result = await deleteTripPlanClient(record.id);
+    const result = await restoreDeletedTripPlanClient(record.id);
 
     if (!result.ok) {
-      setDeletingId(null);
-      setDeleteFeedback({
+      setRestoringId(null);
+      setRestoreFeedback({
         tone: "error",
         message: result.error.message,
       });
@@ -257,10 +246,11 @@ export function TripsPageClient() {
         records: currentState.records.filter((item) => item.id !== record.id),
       };
     });
-    setDeletingId(null);
-    setDeleteFeedback({
+    setRestoringId(null);
+    setRestoreFeedback({
       tone: "success",
-      message: "已从我的行程移除，可在 30 天内到最近删除恢复。",
+      message: "行程已恢复到我的行程。",
+      restoredId: record.id,
     });
   }
 
@@ -271,20 +261,20 @@ export function TripsPageClient() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
         <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-emerald-700">已保存行程</p>
+            <p className="text-sm font-semibold text-emerald-700">已删除行程</p>
             <h1 className="mt-2 break-words text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-              我的行程
+              最近删除
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-              这里显示当前账号已保存的行程，可查看详情，也可以将不再需要的行程移入最近删除。
+              这里仅显示当前账号自己的已删除行程摘要，可在 30 天内恢复。
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Link
-              href="/trips/deleted"
+              href="/trips"
               className="rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              最近删除
+              我的行程
             </Link>
             <Link
               href="/"
@@ -295,23 +285,23 @@ export function TripsPageClient() {
           </div>
         </header>
 
-        {deleteFeedback ? (
+        {restoreFeedback ? (
           <section
             aria-live="polite"
             className={`rounded-md p-4 text-sm leading-6 ${
-              deleteFeedback.tone === "success"
+              restoreFeedback.tone === "success"
                 ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border border-red-200 bg-red-50 text-red-800"
             }`}
           >
-            <p className="font-semibold">{deleteFeedback.message}</p>
-            {deleteFeedback.tone === "success" ? (
+            <p className="font-semibold">{restoreFeedback.message}</p>
+            {restoreFeedback.tone === "success" ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  href="/trips/deleted"
+                  href={`/trips/${restoreFeedback.restoredId}`}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  查看最近删除
+                  查看详情
                 </Link>
                 <Link
                   href="/trips"
@@ -326,7 +316,7 @@ export function TripsPageClient() {
 
         {state.status === "loading" ? (
           <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
-            <p className="text-sm leading-6 text-zinc-600">正在加载我的行程...</p>
+            <p className="text-sm leading-6 text-zinc-600">正在加载最近删除...</p>
           </section>
         ) : null}
 
@@ -337,13 +327,13 @@ export function TripsPageClient() {
         {state.status === "success" && state.records.length === 0 ? <EmptyState /> : null}
 
         {state.status === "success" && state.records.length > 0 ? (
-          <section className="space-y-4" aria-label="已保存行程列表">
+          <section className="space-y-4" aria-label="最近删除行程列表">
             {state.records.map((record) => (
-              <TripRecordCard
+              <DeletedTripRecordCard
                 key={record.id}
                 record={record}
-                isDeleting={deletingId === record.id}
-                onDelete={handleDelete}
+                isRestoring={restoringId === record.id}
+                onRestore={handleRestore}
               />
             ))}
           </section>

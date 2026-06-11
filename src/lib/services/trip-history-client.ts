@@ -12,6 +12,7 @@ import { calculateTripDays } from "@/lib/utils/date";
 
 export type TripHistoryClientErrorKind =
   | "unauthorized"
+  | "bad_request"
   | "not_found"
   | "server_error"
   | "network_error"
@@ -47,6 +48,10 @@ export type SavedTripPlanSummary = {
   generationMode: z.infer<typeof GenerationModeSchema>;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DeletedTripPlanSummary = SavedTripPlanSummary & {
+  deletedAt: string;
 };
 
 export type SavedTripPlanDetail = {
@@ -136,6 +141,21 @@ const ListSuccessResponseSchema = z
   })
   .strip();
 
+const ApiDeletedRecordSchema = ApiRecordSchema.extend({
+  deletedAt: z.string().min(1),
+}).strip();
+
+const DeletedListSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        records: z.array(ApiDeletedRecordSchema),
+      })
+      .strip(),
+  })
+  .strip();
+
 const DetailSuccessResponseSchema = z
   .object({
     ok: z.literal(true),
@@ -198,6 +218,28 @@ const RestoreSuccessResponseSchema = z
     data: z
       .object({
         currentVersion: ApiVersionSummarySchema,
+      })
+      .strip(),
+  })
+  .strip();
+
+const DeleteSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        record: ApiDeletedRecordSchema,
+      })
+      .strip(),
+  })
+  .strip();
+
+const RestoreDeletedSuccessResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    data: z
+      .object({
+        record: ApiRecordSchema,
       })
       .strip(),
   })
@@ -298,12 +340,23 @@ function toSavedTripPlanSummary(record: z.infer<typeof ApiRecordSchema>): SavedT
   };
 }
 
+function toDeletedTripPlanSummary(
+  record: z.infer<typeof ApiDeletedRecordSchema>,
+): DeletedTripPlanSummary {
+  return {
+    ...toSavedTripPlanSummary(record),
+    deletedAt: record.deletedAt,
+  };
+}
+
 function toErrorMessage(kind: TripHistoryClientErrorKind) {
   switch (kind) {
     case "unauthorized":
       return "请先登录后查看我的行程。";
+    case "bad_request":
+      return "已超过 30 天恢复窗口或当前无法恢复。";
     case "not_found":
-      return "没有找到这份已保存的行程。";
+      return "行程不可访问或不存在。";
     case "server_error":
       return "历史行程服务暂时不可用，请稍后重试。";
     case "network_error":
@@ -316,6 +369,10 @@ function toErrorMessage(kind: TripHistoryClientErrorKind) {
 function toErrorKind(status: number, apiCode?: string): TripHistoryClientErrorKind {
   if (status === 401 || apiCode === "UNAUTHORIZED") {
     return "unauthorized";
+  }
+
+  if (status === 400 || apiCode === "BAD_REQUEST") {
+    return "bad_request";
   }
 
   if (status === 404 || apiCode === "NOT_FOUND") {
@@ -425,6 +482,34 @@ async function patchJson(path: string, body: unknown, fetcher: FetchLike) {
   };
 }
 
+async function deleteJson(path: string, fetcher: FetchLike) {
+  let response: Response;
+
+  try {
+    response = await fetcher(path, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false as const,
+      error: {
+        kind: "network_error" as const,
+        message: toErrorMessage("network_error"),
+      },
+    };
+  }
+
+  return {
+    ok: true as const,
+    response,
+    json: await readJsonSafely(response),
+  };
+}
+
 function errorResultFromResponse(
   response: Response,
   json: unknown,
@@ -477,6 +562,100 @@ export async function listSavedTripPlans(
       ok: true,
       data: {
         records: validationResult.data.data.records.map(toSavedTripPlanSummary),
+      },
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function deleteTripPlanClient(
+  id: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ record: DeletedTripPlanSummary }>> {
+  const requestResult = await deleteJson(
+    `/api/travel-plans/${encodeURIComponent(id)}`,
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = DeleteSuccessResponseSchema.safeParse(requestResult.json);
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: {
+        record: toDeletedTripPlanSummary(validationResult.data.data.record),
+      },
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function listDeletedTripPlansClient(
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ records: DeletedTripPlanSummary[] }>> {
+  const requestResult = await getJson("/api/travel-plans/deleted", fetcher);
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = DeletedListSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: {
+        records: validationResult.data.data.records.map(toDeletedTripPlanSummary),
+      },
+    };
+  }
+
+  return errorResultFromResponse(requestResult.response, requestResult.json);
+}
+
+export async function restoreDeletedTripPlanClient(
+  id: string,
+  fetcher: FetchLike = fetch,
+): Promise<TripHistoryClientResult<{ record: SavedTripPlanSummary }>> {
+  const requestResult = await postJson(
+    `/api/travel-plans/${encodeURIComponent(id)}/restore-deleted`,
+    {},
+    fetcher,
+  );
+
+  if (!requestResult.ok) {
+    return requestResult;
+  }
+
+  if (!requestResult.response.ok) {
+    return errorResultFromResponse(requestResult.response, requestResult.json);
+  }
+
+  const validationResult = RestoreDeletedSuccessResponseSchema.safeParse(
+    requestResult.json,
+  );
+
+  if (validationResult.success) {
+    return {
+      ok: true,
+      data: {
+        record: toSavedTripPlanSummary(validationResult.data.data.record),
       },
     };
   }

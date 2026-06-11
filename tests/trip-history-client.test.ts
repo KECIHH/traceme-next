@@ -4,13 +4,16 @@ import test from "node:test";
 import { mockTripPlan } from "@/lib/mock/mock-trip-plan";
 import {
   createShareLinkClient,
+  deleteTripPlanClient,
   getSavedTripPlanDetail,
   getSharedTripClient,
   getTripPlanVersionClient,
+  listDeletedTripPlansClient,
   listShareLinksClient,
   listSavedTripPlans,
   listTripPlanVersionsClient,
   revokeShareLinkClient,
+  restoreDeletedTripPlanClient,
   restoreTripPlanVersionClient,
 } from "@/lib/services/trip-history-client";
 
@@ -247,6 +250,258 @@ test("trip history list client strips internal record fields", async () => {
   assert.equal("userId" in record, false);
   assert.equal("deletedAt" in record, false);
   assert.equal("currentVersionId" in record, false);
+});
+
+test("delete trip plan client maps 401, 404, and 500 responses safely", async () => {
+  const cases = [
+    {
+      status: 401,
+      code: "UNAUTHORIZED",
+      expectedKind: "unauthorized",
+    },
+    {
+      status: 404,
+      code: "NOT_FOUND",
+      expectedKind: "not_found",
+    },
+    {
+      status: 500,
+      code: "INTERNAL_ERROR",
+      expectedKind: "server_error",
+    },
+  ] as const;
+
+  for (const { status, code, expectedKind } of cases) {
+    const result = await deleteTripPlanClient(
+      recordId,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+
+    assert.equal(result.ok, false);
+
+    if (result.ok) {
+      throw new Error("Expected delete client to fail.");
+    }
+
+    assert.equal(result.error.kind, expectedKind);
+    assert.equal(result.error.status, status);
+    assert.doesNotMatch(
+      result.error.message,
+      /userId|DATABASE_URL|AUTH_SECRET|OAuth secret|API Key|Bearer|Authorization|tokenHash|SQL|stack/i,
+    );
+  }
+});
+
+test("deleted trip plans list client maps 401 and 500 responses safely", async () => {
+  const cases = [
+    {
+      status: 401,
+      code: "UNAUTHORIZED",
+      expectedKind: "unauthorized",
+    },
+    {
+      status: 500,
+      code: "INTERNAL_ERROR",
+      expectedKind: "server_error",
+    },
+  ] as const;
+
+  for (const { status, code, expectedKind } of cases) {
+    const result = await listDeletedTripPlansClient(
+      createJsonFetcher(createErrorBody(code), status),
+    );
+
+    assert.equal(result.ok, false);
+
+    if (result.ok) {
+      throw new Error("Expected deleted list client to fail.");
+    }
+
+    assert.equal(result.error.kind, expectedKind);
+    assert.equal(result.error.status, status);
+    assert.doesNotMatch(
+      result.error.message,
+      /userId|DATABASE_URL|AUTH_SECRET|OAuth secret|API Key|Bearer|Authorization|tokenHash|SQL|stack/i,
+    );
+  }
+});
+
+test("restore deleted trip plan client maps 400, 401, 404, and 500 responses safely", async () => {
+  const cases = [
+    {
+      status: 400,
+      code: "BAD_REQUEST",
+      expectedKind: "bad_request",
+    },
+    {
+      status: 401,
+      code: "UNAUTHORIZED",
+      expectedKind: "unauthorized",
+    },
+    {
+      status: 404,
+      code: "NOT_FOUND",
+      expectedKind: "not_found",
+    },
+    {
+      status: 500,
+      code: "INTERNAL_ERROR",
+      expectedKind: "server_error",
+    },
+  ] as const;
+
+  for (const { status, code, expectedKind } of cases) {
+    const result = await restoreDeletedTripPlanClient(
+      recordId,
+      createJsonFetcher(createErrorBody(code), status),
+    );
+
+    assert.equal(result.ok, false);
+
+    if (result.ok) {
+      throw new Error("Expected restore deleted client to fail.");
+    }
+
+    assert.equal(result.error.kind, expectedKind);
+    assert.equal(result.error.status, status);
+    assert.doesNotMatch(
+      result.error.message,
+      /userId|DATABASE_URL|AUTH_SECRET|OAuth secret|API Key|Bearer|Authorization|tokenHash|SQL|stack/i,
+    );
+  }
+});
+
+test("delete, deleted list, and restore-deleted clients use expected routes and strip internals", async () => {
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const deleteCalls: Array<{
+    input: string;
+    init?: RequestInit;
+  }> = [];
+  const deleteResult = await deleteTripPlanClient(
+    recordId,
+    createRecordingJsonFetcher(
+      {
+        ok: true,
+        data: {
+          record: buildApiRecord({
+            deletedAt,
+            userId: "123e4567-e89b-42d3-a456-426614174000",
+            currentVersionId: versionId,
+            snapshot: mockTripPlan,
+            tokenHash: "hashed-token",
+          }),
+        },
+      },
+      200,
+      deleteCalls,
+    ),
+  );
+
+  assert.equal(deleteResult.ok, true);
+  assert.equal(deleteCalls.length, 1);
+  assert.equal(deleteCalls[0]?.input, `/api/travel-plans/${recordId}`);
+  assert.equal(deleteCalls[0]?.init?.method, "DELETE");
+
+  if (!deleteResult.ok) {
+    throw new Error("Expected delete client to succeed.");
+  }
+
+  const deletedRecord = deleteResult.data.record as Record<string, unknown>;
+
+  assert.equal(deletedRecord.deletedAt, deletedAt);
+  assert.equal(deletedRecord.days, 3);
+  assert.equal("userId" in deletedRecord, false);
+  assert.equal("currentVersionId" in deletedRecord, false);
+  assert.equal("snapshot" in deletedRecord, false);
+  assert.equal("tokenHash" in deletedRecord, false);
+
+  const listCalls: Array<{
+    input: string;
+    init?: RequestInit;
+  }> = [];
+  const listResult = await listDeletedTripPlansClient(
+    createRecordingJsonFetcher(
+      {
+        ok: true,
+        data: {
+          records: [
+            buildApiRecord({
+              deletedAt,
+              userId: "123e4567-e89b-42d3-a456-426614174000",
+              currentVersionId: versionId,
+              snapshot: mockTripPlan,
+              tokenHash: "hashed-token",
+            }),
+          ],
+        },
+      },
+      200,
+      listCalls,
+    ),
+  );
+
+  assert.equal(listResult.ok, true);
+  assert.equal(listCalls.length, 1);
+  assert.equal(listCalls[0]?.input, "/api/travel-plans/deleted");
+  assert.equal(listCalls[0]?.init?.method, "GET");
+
+  if (!listResult.ok) {
+    throw new Error("Expected deleted list client to succeed.");
+  }
+
+  const listedRecord = listResult.data.records[0] as Record<string, unknown>;
+
+  assert.equal(listedRecord.deletedAt, deletedAt);
+  assert.equal(listedRecord.days, 3);
+  assert.equal("userId" in listedRecord, false);
+  assert.equal("currentVersionId" in listedRecord, false);
+  assert.equal("snapshot" in listedRecord, false);
+  assert.equal("tokenHash" in listedRecord, false);
+
+  const restoreCalls: Array<{
+    input: string;
+    init?: RequestInit;
+  }> = [];
+  const restoreResult = await restoreDeletedTripPlanClient(
+    recordId,
+    createRecordingJsonFetcher(
+      {
+        ok: true,
+        data: {
+          record: buildApiRecord({
+            userId: "123e4567-e89b-42d3-a456-426614174000",
+            currentVersionId: versionId,
+            snapshot: mockTripPlan,
+            tokenHash: "hashed-token",
+          }),
+        },
+      },
+      200,
+      restoreCalls,
+    ),
+  );
+
+  assert.equal(restoreResult.ok, true);
+  assert.equal(restoreCalls.length, 1);
+  assert.equal(
+    restoreCalls[0]?.input,
+    `/api/travel-plans/${recordId}/restore-deleted`,
+  );
+  assert.equal(restoreCalls[0]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(restoreCalls[0]?.init?.body)), {});
+
+  if (!restoreResult.ok) {
+    throw new Error("Expected restore deleted client to succeed.");
+  }
+
+  const restoredRecord = restoreResult.data.record as Record<string, unknown>;
+
+  assert.equal(restoredRecord.days, 3);
+  assert.equal("deletedAt" in restoredRecord, false);
+  assert.equal("userId" in restoredRecord, false);
+  assert.equal("currentVersionId" in restoredRecord, false);
+  assert.equal("snapshot" in restoredRecord, false);
+  assert.equal("tokenHash" in restoredRecord, false);
 });
 
 test("trip history detail client strips internal record and version fields", async () => {

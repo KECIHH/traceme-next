@@ -1,3 +1,164 @@
+# Project State - MVP Round 40
+## Round 40 Current State
+- Round 40 adds the minimum owner-only delete / restore-deleted UI on top of the Round 38 API boundary.
+- `/trips` now has a "最近删除" entry and a per-trip delete action. Deletion requires confirmation, calls `DELETE /api/travel-plans/[id]`, removes the record from the visible list after success, and explains that the record can be restored within 30 days.
+- `/trips/[id]` now has a separate owner management delete panel near the saved-trip summary. It is visually and textually separate from version restore controls, requires confirmation, calls the soft-delete API, and returns the user to `/trips` after success.
+- Added `/trips/deleted` as the recently deleted page. It calls `GET /api/travel-plans/deleted`, shows only safe deleted-trip summaries, and supports confirmed restore through `POST /api/travel-plans/[id]/restore-deleted`.
+- Added client wrappers `deleteTripPlanClient`, `listDeletedTripPlansClient`, and `restoreDeletedTripPlanClient` with safe response adapters and friendly 400 / 401 / 404 / 500 error mapping.
+- Restore success removes the item from the recently deleted list and offers links back to the restored trip detail and `/trips`.
+- Error UI uses friendly messages only and does not display stack traces, SQL, connection strings, secrets, token hashes, raw tokens, owner ids, or internal record ids beyond the public record id already present in route links.
+
+## Round 40 Boundaries
+- Soft-delete UI only. No physical deletion, hard-delete retention job, account deletion workflow, admin backend, map, weather, search, productionization, domain, HTTPS, reverse proxy, new package dependency, migration, provider change, or Docker/Caddy/deployment work was added.
+- Existing `POST /api/travel-plans/generate` and `POST /api/travel-plans/compare` behavior remains unchanged.
+- No client-side database access was added.
+- No `.env`, `.env.local`, server secret file, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+- Recently deleted UI does not show `TripPlan` snapshots, `userId`, `currentVersionId`, `tokenHash`, raw share tokens, SQL details, or connection strings.
+- Existing unrelated working-tree changes were not reverted or extended beyond files needed for this UI round.
+
+## Round 40 Review Fix
+- After review, corrected the `/trips` page header copy so it no longer describes the page as a read-only entry without management actions after the delete entry was added.
+- No delete/restore API behavior, generate/compare/save/version/share behavior, database access pattern, productionization work, admin backend, map, weather, search, secret handling, or environment file behavior was changed in this fix.
+
+## Round 40 Verification
+- `npm test`: passed, 112 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/trips/deleted` along with the existing delete, restore-deleted, and deleted-list API routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 40 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: MVP delete / restore-deleted UI round 40
+
+# Project State - MVP Round 39
+## Round 39 Current State
+- Round 39 is a documentation-only project brief and roadmap consolidation round.
+- Added `docs/00-project-brief-and-roadmap.md` as the project single source of truth for future context compression, window changes, and continued development.
+- The new brief records the one-sentence product definition, current personal beta / feature-polish stage, current main line as a personal travel-planning workbench, implemented capabilities, not-yet-implemented capabilities, short-term priorities, deferred directions, per-round development rules, sensitive-information rules, and the recommended next step: delete / restore-deleted UI.
+- The recommended next step is documentation guidance only. Delete UI, restore-deleted UI, recently deleted UI, and undo UI were not implemented in this round.
+
+## Round 39 Boundaries
+- Documentation only. No business code, API route, schema, repository method, migration, UI component, package dependency, provider, auth, database, Docker, Caddy, deployment script, or runtime behavior was intentionally changed.
+- No preproduction rehearsal, domain setup, HTTPS setup, reverse proxy work, admin backend, map, weather, search, production switch, or commercial release work was performed.
+- No delete UI, restore-deleted UI, recently deleted UI, undo UI, recycle-bin page, hard-delete retention job, account deletion workflow, or complex permission model was added.
+- No `.env`, `.env.local`, server secret file, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, connection string, or provider secret was recorded.
+- Existing unrelated working-tree changes were not reverted or extended.
+
+## Round 39 Verification
+- `npm test`: passed, 106 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output remains the existing app/API route set and includes the Round 38 delete/restore-deleted/deleted routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 39 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: project brief and roadmap consolidation round 39
+
+# Project State - MVP Round 38
+## Round 38 Current State
+- Round 38 implements the API-only minimum loop for owner-scoped saved-trip soft delete, restore-deleted, and deleted-list behavior.
+- Added `DELETE /api/travel-plans/[id]`; it requires `requireCurrentUser()`, soft-deletes only the current user's active record, sets `deleted_at`, returns a safe deleted summary, and revokes active share links for that record.
+- Added `POST /api/travel-plans/[id]/restore-deleted`; it requires `requireCurrentUser()`, restores only the current user's deleted record within a 30-day window, clears `deleted_at`, and does not create versions or reactivate old share links.
+- Added `GET /api/travel-plans/deleted`; it requires `requireCurrentUser()` and returns only current-user deleted record summaries with `deletedAt`, without snapshots, owner ids, current version ids, token hashes, raw tokens, SQL, stack traces, or secrets.
+- Existing normal saved-trip list/detail/version/share/public-share behavior remains soft-delete aware: deleted records are hidden from `GET /api/travel-plans`, `GET /api/travel-plans/[id]`, version APIs, owner share APIs, and public share lookup.
+- Restore expiration is documented and implemented as `400 BAD_REQUEST`; missing, invalid-id, cross-user, active-record, and already-unavailable cases continue to use generic `404 NOT_FOUND`.
+- Existing `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, version restore, share create/list/revoke, and public-share success behavior remains unchanged.
+
+## Round 38 Boundaries
+- API and repository implementation only. No delete UI, undo UI, deleted-list page, recycle-bin page, admin backend, map, weather, search, hard-delete retention job, account deletion workflow, migration, package dependency, provider, Docker, Caddy, deployment script, or generate/compare behavior was intentionally added or changed.
+- No client-side database access was added.
+- No `.env`, `.env.local`, server secret file, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+- Existing unrelated working-tree changes were not reverted or extended.
+
+## Round 38 Verification
+- `npm test`: passed, 106 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output includes `/api/travel-plans/[id]/restore-deleted` and `/api/travel-plans/deleted`.
+- `npx tsc --noEmit`: passed after the production build completed.
+
+## Round 38 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: MVP saved-trip soft delete/restore API round 38
+
+# Project State - MVP Round 37
+## Round 37 Current State
+- Round 37 is a documentation-only design round for saved-trip delete, soft delete, and restore-deleted behavior.
+- Added `docs/14-delete-restore-design.md` as the design source for owner-only soft delete, 30-day restore window, deleted-list option, version-history impact, share-link impact, UI draft, and privacy risks.
+- The design records that the current personal beta has saved trips, version history, version restore, fixed-version share links, and public read-only shared-trip pages.
+- The design records that delete and restore-deleted are not implemented yet: no `DELETE /api/travel-plans/[id]`, no `POST /api/travel-plans/[id]/restore-deleted`, no `GET /api/travel-plans/deleted`, and no delete or undo UI.
+- The recommended first implementation remains soft delete by setting `TripPlanRecord.deletedAt`; normal lists hide deleted records, and detail/share surfaces should use generic unavailable or `404 NOT_FOUND` behavior.
+- The recommended restore window is 30 days. Restore should clear `deletedAt`, keep version snapshots, avoid creating a new version, and require users to create a new share link after restore.
+- Existing `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, restore, share, and public-share API behavior remains unchanged.
+
+## Round 37 Boundaries
+- Documentation only. No source code, API route, schema, repository method, migration, UI component, package dependency, provider, auth, database, Docker, Caddy, deployment script, or core business behavior was intentionally changed in this round.
+- No delete API was implemented.
+- No restore-deleted API was implemented.
+- No deleted-list API was implemented.
+- No delete, undo, recycle-bin, or recently-deleted UI was implemented.
+- No database migration or hard-delete retention job was added.
+- No admin backend, map, weather, enhanced search, analytics, richer PDF, user settings, payment, preproduction rehearsal, domain, HTTPS, reverse proxy, or public infrastructure setup was performed.
+- No `.env`, `.env.local`, server secret file, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+- Existing unrelated working-tree changes were not reverted or extended.
+
+## Round 37 Verification
+- `npm test`: passed, 94 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; build output did not include any new delete or restore-deleted routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 37 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP saved-trip delete/restore design round 37
+
+# Project State - MVP Round 36
+## Round 36 Current State
+- Round 36 recalibrates the project back to the personal beta / feature-polish track.
+- The current main line is still personal testing and product-function completion, not preproduction, formal production, domain, HTTPS, reverse proxy, or commercial release work.
+- Added `docs/13-next-feature-roadmap.md` as the current roadmap source for implemented features, unfinished capabilities, priority assessment, and recommended next order.
+- Reviewed the current feature state across AI generation, plan comparison, export, login, saved history, version history, and share links.
+- Current implemented capability summary:
+  - AI generation through `POST /api/travel-plans/generate`, with mock and `openai-compatible` provider modes, schema validation, and human-verification wording.
+  - Plan comparison through `POST /api/travel-plans/compare` and the comparison UI after a main plan is generated.
+  - Export through copy full text, Markdown download, and browser print/save-PDF entry.
+  - Login boundary through Auth.js and protected account/session helpers when configured.
+  - Saved history through manual save, protected list, protected detail, and owner-scoped database access.
+  - Version history through protected version APIs, owner detail UI, and restore that creates a new current version.
+  - Share links through fixed-version owner create/list/revoke controls and a public read-only shared-trip page.
+- Current unfinished capability summary:
+  - admin backend.
+  - maps.
+  - weather.
+  - search enhancement.
+  - richer PDF/server-side export.
+  - data statistics.
+  - user settings.
+  - finer permissions, delete, retention, and undo flows.
+- `docs/12-production-ops-design.md` is now treated as future productionization reference only. It is not the current Round 36 main line.
+- Existing `POST /api/travel-plans/generate`, `POST /api/travel-plans/compare`, save, history, versions, restore, share, and public-share API behavior remains unchanged.
+
+## Round 36 Boundaries
+- Documentation-only recalibration. No source code, API route, schema, migration, provider, auth, database, Docker, Caddy, deployment script, or core business behavior was intentionally changed in this round.
+- No preproduction rehearsal was performed.
+- No formal production switch was performed.
+- No real domain, HTTPS, reverse proxy, or public infrastructure setup was performed.
+- No admin backend, map, weather, enhanced search, analytics, richer PDF, user settings, payment, or commercial publishing feature was implemented.
+- No finer permission or delete/undo implementation was added; those remain roadmap items.
+- No `.env`, `.env.local`, server secret file, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer token, authorization header value, raw share token, provider endpoint, SQL detail, stack trace, or provider secret was recorded.
+- Docs continue to use placeholders such as `[生产域名]`, `[预生产域名]`, `[测试版访问地址]`, `[测试服务器]`, `[数据库服务]`, and `[真实 AI Provider]`.
+- Existing preproduction-related working-tree changes are not reverted in this round, but they are also not extended or treated as the active project direction.
+
+## Round 36 Verification
+- `npm test`: passed, 94 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed.
+- `npx tsc --noEmit`: passed.
+- Docker, Caddy, preproduction smoke, production migration, domain/HTTPS setup, reverse-proxy setup, and real server operations were intentionally not run in this round.
+
+## Round 36 Record Time
+- Date: 2026-06-10 (Asia/Shanghai)
+- Stage: MVP personal beta feature roadmap round 36
+
 # Project State - MVP Round 35
 ## Round 35 Current State
 - Round 35 only adds production-readiness operations design documentation for moving the current beta toward a steadier production deployment.

@@ -63,6 +63,10 @@ export type TripPlanRecordSummary = {
   updatedAt: string;
 };
 
+type DeletedTripPlanRecordSummary = TripPlanRecordSummary & {
+  deletedAt: string;
+};
+
 type VersionSummaryForApi = {
   id: string;
   versionNumber: number;
@@ -181,6 +185,13 @@ export type ListTripPlansApiDependencies = {
   }): Promise<TripPlanRecordForApi[]>;
 };
 
+export type ListDeletedTripPlansApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  listDeletedTripPlanRecordsByUser(input: {
+    userId: string;
+  }): Promise<TripPlanRecordForApi[]>;
+};
+
 export type GetTripPlanDetailApiDependencies = {
   requireCurrentUser: RequireCurrentUser;
   getTripPlanRecordById(input: {
@@ -236,6 +247,34 @@ export type RestoreTripPlanVersionApiDependencies = {
     tripPlan: TripPlan;
     restoreFromVersionId: string;
   }): Promise<TripPlanVersionForApi>;
+};
+
+export type DeleteTripPlanApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  softDeleteTripPlanRecord(input: {
+    userId: string;
+    id: string;
+  }): Promise<TripPlanRecordForApi | null>;
+};
+
+export type RestoreDeletedTripPlanApiDependencies = {
+  requireCurrentUser: RequireCurrentUser;
+  restoreDeletedTripPlanRecord(input: {
+    userId: string;
+    id: string;
+    restoreWindowDays: number;
+  }): Promise<
+    | {
+        status: "restored";
+        record: TripPlanRecordForApi;
+      }
+    | {
+        status: "not_found";
+      }
+    | {
+        status: "expired";
+      }
+  >;
 };
 
 export type CreateTripPlanShareLinkApiDependencies = {
@@ -304,6 +343,15 @@ function badRequestResponse(requestId: string) {
   return errorResponse("BAD_REQUEST", "Request body is invalid.", requestId, 400);
 }
 
+function restoreWindowExpiredResponse(requestId: string) {
+  return errorResponse(
+    "BAD_REQUEST",
+    "Deleted trip plan can no longer be restored.",
+    requestId,
+    400,
+  );
+}
+
 function notFoundResponse(requestId: string) {
   return errorResponse("NOT_FOUND", "Trip plan was not found.", requestId, 404);
 }
@@ -349,6 +397,15 @@ function summarizeRecord(record: TripPlanRecordForApi): TripPlanRecordSummary {
     generationMode: record.generationMode,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+  };
+}
+
+function summarizeDeletedRecord(
+  record: TripPlanRecordForApi,
+): DeletedTripPlanRecordSummary {
+  return {
+    ...summarizeRecord(record),
+    deletedAt: record.deletedAt ?? record.updatedAt,
   };
 }
 
@@ -557,6 +614,42 @@ export async function handleListTripPlansRequest(
   }
 }
 
+export async function handleListDeletedTripPlansRequest(
+  dependencies: ListDeletedTripPlansApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("deleted.list.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  try {
+    const records = await dependencies.listDeletedTripPlanRecordsByUser({
+      userId: currentUser.id,
+    });
+
+    return Response.json({
+      ok: true,
+      data: {
+        records: records.map(summarizeDeletedRecord),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("deleted.list", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
 export async function handleGetTripPlanDetailRequest(
   id: string,
   dependencies: GetTripPlanDetailApiDependencies,
@@ -609,6 +702,103 @@ export async function handleGetTripPlanDetailRequest(
     });
   } catch (error) {
     logInternalApiError("detail.record", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleDeleteTripPlanRequest(
+  id: string,
+  dependencies: DeleteTripPlanApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("delete.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return notFoundResponse(requestId);
+  }
+
+  try {
+    const record = await dependencies.softDeleteTripPlanRecord({
+      userId: currentUser.id,
+      id,
+    });
+
+    if (record === null) {
+      return notFoundResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        record: summarizeDeletedRecord(record),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("delete.record", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+}
+
+export async function handleRestoreDeletedTripPlanRequest(
+  id: string,
+  dependencies: RestoreDeletedTripPlanApiDependencies,
+) {
+  const requestId = createRequestId();
+  let currentUser: CurrentUser;
+
+  try {
+    const userResult = await requireUserOrResponse(requestId, dependencies.requireCurrentUser);
+
+    if (!userResult.ok) {
+      return userResult.response;
+    }
+
+    currentUser = userResult.user;
+  } catch (error) {
+    logInternalApiError("deleted.restore.requireCurrentUser", requestId, error);
+    return internalErrorResponse(requestId);
+  }
+
+  if (!isUuid(id)) {
+    return notFoundResponse(requestId);
+  }
+
+  try {
+    const result = await dependencies.restoreDeletedTripPlanRecord({
+      userId: currentUser.id,
+      id,
+      restoreWindowDays: 30,
+    });
+
+    if (result.status === "not_found") {
+      return notFoundResponse(requestId);
+    }
+
+    if (result.status === "expired") {
+      return restoreWindowExpiredResponse(requestId);
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        record: summarizeRecord(result.record),
+      },
+    });
+  } catch (error) {
+    logInternalApiError("deleted.restore", requestId, error);
     return internalErrorResponse(requestId);
   }
 }

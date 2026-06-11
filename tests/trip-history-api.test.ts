@@ -15,18 +15,24 @@ import {
   createTripPlanVersion,
   getPublicSharedTripByToken,
   getTripPlanVersionById,
+  listDeletedTripPlanRecordsByUser,
   listTripPlanVersionsForRecord,
+  restoreDeletedTripPlanRecord,
+  softDeleteTripPlanRecord,
 } from "@/lib/server/trip-history/repository";
 import {
   handleCreateTripPlanShareLinkRequest,
+  handleDeleteTripPlanRequest,
   handleGetPublicSharedTripRequest,
   handleAppendTripPlanVersionRequest,
   handleGetTripPlanDetailRequest,
   handleGetTripPlanVersionDetailRequest,
+  handleListDeletedTripPlansRequest,
   handleListTripPlansRequest,
   handleListTripPlanShareLinksRequest,
   handleListTripPlanVersionsRequest,
   handleRevokeTripPlanShareLinkRequest,
+  handleRestoreDeletedTripPlanRequest,
   handleRestoreTripPlanVersionRequest,
   handleSaveTripPlanRequest,
   type TripPlanRecordForApi,
@@ -202,6 +208,33 @@ function buildApiShare(overrides: Partial<ApiShareFixture> = {}): ApiShareFixtur
   };
 }
 
+function buildTripPlanRecordDbRow(
+  tripPlan: TripPlan,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: recordId,
+    user_id: currentUser.id,
+    title: `${tripPlan.input.destination} ${tripPlan.input.startDate} - ${tripPlan.input.endDate}`,
+    destination: tripPlan.input.destination,
+    departure_city: tripPlan.input.departureCity,
+    start_date: tripPlan.input.startDate,
+    end_date: tripPlan.input.endDate,
+    travelers: tripPlan.input.travelers,
+    budget_amount: tripPlan.input.budget.amount,
+    budget_currency: tripPlan.input.budget.currency,
+    budget_scope: tripPlan.input.budget.scope,
+    current_version_id: versionId,
+    source_provider: tripPlan.source.provider,
+    source_kind: tripPlan.source.kind,
+    generation_mode: tripPlan.generationMode,
+    created_at: "2026-06-09T00:00:00.000Z",
+    updated_at: "2026-06-09T00:00:01.000Z",
+    deleted_at: null,
+    ...overrides,
+  };
+}
+
 function buildSaveRequest(body: unknown) {
   return new Request("http://localhost/api/travel-plans/save", {
     method: "POST",
@@ -262,16 +295,26 @@ function assertNoSensitiveOrInternalFields(value: unknown) {
   );
 }
 
+function assertNoSensitiveOrInternalFieldsExceptDeletedAt(value: unknown) {
+  assert.doesNotMatch(
+    JSON.stringify(value),
+    /userId|ownerUserId|tripPlanRecordId|tripPlanSnapshot|restoreFromVersionId|currentVersionId|tokenHash|DATABASE_URL|AUTH_SECRET|OAuth secret|API Key|Bearer|Authorization|SQL|stack/i,
+  );
+}
+
 test("saved history API handlers return 401 before reading or writing when unauthenticated", async () => {
   let saveWriteCount = 0;
   let listReadCount = 0;
+  let deletedListReadCount = 0;
   let detailReadCount = 0;
+  let deleteWriteCount = 0;
   let versionsListReadCount = 0;
   let versionDetailReadCount = 0;
   let appendReadCount = 0;
   let appendWriteCount = 0;
   let restoreReadCount = 0;
   let restoreWriteCount = 0;
+  let restoreDeletedWriteCount = 0;
 
   const saveResponse = await handleSaveTripPlanRequest(buildSaveRequest({}), {
     requireCurrentUser: requireUnauthenticatedUser,
@@ -287,6 +330,13 @@ test("saved history API handlers return 401 before reading or writing when unaut
       return [];
     },
   });
+  const deletedListResponse = await handleListDeletedTripPlansRequest({
+    requireCurrentUser: requireUnauthenticatedUser,
+    async listDeletedTripPlanRecordsByUser() {
+      deletedListReadCount += 1;
+      return [];
+    },
+  });
   const detailResponse = await handleGetTripPlanDetailRequest(recordId, {
     requireCurrentUser: requireUnauthenticatedUser,
     async getTripPlanRecordById() {
@@ -295,6 +345,13 @@ test("saved history API handlers return 401 before reading or writing when unaut
     },
     async getCurrentTripPlanVersionForRecord() {
       throw new Error("should not read version");
+    },
+  });
+  const deleteResponse = await handleDeleteTripPlanRequest(recordId, {
+    requireCurrentUser: requireUnauthenticatedUser,
+    async softDeleteTripPlanRecord() {
+      deleteWriteCount += 1;
+      return null;
     },
   });
   const versionsListResponse = await handleListTripPlanVersionsRequest(recordId, {
@@ -341,15 +398,25 @@ test("saved history API handlers return 401 before reading or writing when unaut
       },
     },
   );
+  const restoreDeletedResponse = await handleRestoreDeletedTripPlanRequest(recordId, {
+    requireCurrentUser: requireUnauthenticatedUser,
+    async restoreDeletedTripPlanRecord() {
+      restoreDeletedWriteCount += 1;
+      return { status: "not_found" };
+    },
+  });
 
   for (const response of [
     saveResponse,
     listResponse,
+    deletedListResponse,
     detailResponse,
+    deleteResponse,
     versionsListResponse,
     versionDetailResponse,
     appendResponse,
     restoreResponse,
+    restoreDeletedResponse,
   ]) {
     const json = (await response.json()) as {
       ok: false;
@@ -365,13 +432,16 @@ test("saved history API handlers return 401 before reading or writing when unaut
 
   assert.equal(saveWriteCount, 0);
   assert.equal(listReadCount, 0);
+  assert.equal(deletedListReadCount, 0);
   assert.equal(detailReadCount, 0);
+  assert.equal(deleteWriteCount, 0);
   assert.equal(versionsListReadCount, 0);
   assert.equal(versionDetailReadCount, 0);
   assert.equal(appendReadCount, 0);
   assert.equal(appendWriteCount, 0);
   assert.equal(restoreReadCount, 0);
   assert.equal(restoreWriteCount, 0);
+  assert.equal(restoreDeletedWriteCount, 0);
 });
 
 test("save history API returns 400 for an invalid TripPlan without writing", async () => {
@@ -472,6 +542,45 @@ test("list history API only asks for the current user's records and returns safe
   assert.equal("currentVersionId" in (json.data.records[0] ?? {}), false);
 });
 
+test("deleted history API only asks for the current user's deleted records", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const listInputs: Array<{
+    userId: string;
+  }> = [];
+  const response = await handleListDeletedTripPlansRequest({
+    requireCurrentUser: authenticatedUser,
+    async listDeletedTripPlanRecordsByUser(input) {
+      listInputs.push(input);
+
+      return [
+        buildApiRecord(tripPlan, {
+          deletedAt,
+          currentVersionId: versionId,
+          userId: otherUserId,
+        }),
+      ];
+    },
+  });
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      records: Array<Record<string, unknown>>;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.deepEqual(listInputs, [{ userId: currentUser.id }]);
+  assert.equal(json.data.records.length, 1);
+  assert.equal(json.data.records[0]?.id, recordId);
+  assert.equal(json.data.records[0]?.deletedAt, deletedAt);
+  assert.equal("userId" in (json.data.records[0] ?? {}), false);
+  assert.equal("currentVersionId" in (json.data.records[0] ?? {}), false);
+  assert.equal("tripPlanSnapshot" in (json.data.records[0] ?? {}), false);
+  assertNoSensitiveOrInternalFieldsExceptDeletedAt(json);
+});
+
 test("detail history API scopes record and current snapshot reads to the current user", async () => {
   const tripPlan = await buildValidTripPlan();
   const recordInputs: Array<{
@@ -542,6 +651,229 @@ test("detail history API returns 404 for missing or cross-owner records", async 
   assert.equal(json.ok, false);
   assert.equal(json.error.code, "NOT_FOUND");
   assert.equal(versionReadCount, 0);
+});
+
+test("delete history API soft-deletes owner records and returns a safe deleted summary", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const deleteInputs: Array<{
+    userId: string;
+    id: string;
+  }> = [];
+  const response = await handleDeleteTripPlanRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async softDeleteTripPlanRecord(input) {
+      deleteInputs.push(input);
+
+      return buildApiRecord(tripPlan, {
+        deletedAt,
+        updatedAt: deletedAt,
+        userId: otherUserId,
+        currentVersionId: versionId,
+      });
+    },
+  });
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      record: Record<string, unknown>;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.deepEqual(deleteInputs, [{ userId: currentUser.id, id: recordId }]);
+  assert.equal(json.data.record.id, recordId);
+  assert.equal(json.data.record.deletedAt, deletedAt);
+  assert.equal("userId" in json.data.record, false);
+  assert.equal("currentVersionId" in json.data.record, false);
+  assert.equal("tripPlanSnapshot" in json.data.record, false);
+  assertNoSensitiveOrInternalFieldsExceptDeletedAt(json);
+});
+
+test("delete history API returns 404 for missing, deleted, or cross-owner records", async () => {
+  const response = await handleDeleteTripPlanRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async softDeleteTripPlanRecord(input) {
+      assert.deepEqual(input, { userId: currentUser.id, id: recordId });
+
+      return null;
+    },
+  });
+  const invalidIdResponse = await handleDeleteTripPlanRequest("not-a-record-id", {
+    requireCurrentUser: authenticatedUser,
+    async softDeleteTripPlanRecord() {
+      throw new Error("should not delete invalid ids");
+    },
+  });
+
+  for (const item of [response, invalidIdResponse]) {
+    const json = (await item.json()) as {
+      ok: false;
+      error: {
+        code: string;
+      };
+    };
+
+    assert.equal(item.status, 404);
+    assert.equal(json.ok, false);
+    assert.equal(json.error.code, "NOT_FOUND");
+    assertNoSensitiveOrInternalFields(json);
+  }
+});
+
+test("restore-deleted API restores current user's deleted record within 30 days", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const restoreInputs: Array<{
+    userId: string;
+    id: string;
+    restoreWindowDays: number;
+  }> = [];
+  const response = await handleRestoreDeletedTripPlanRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async restoreDeletedTripPlanRecord(input) {
+      restoreInputs.push(input);
+
+      return {
+        status: "restored",
+        record: buildApiRecord(tripPlan, {
+          deletedAt: null,
+          userId: otherUserId,
+          currentVersionId: versionId,
+        }),
+      };
+    },
+  });
+  const json = (await response.json()) as {
+    ok: true;
+    data: {
+      record: Record<string, unknown>;
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.ok, true);
+  assert.deepEqual(restoreInputs, [
+    {
+      userId: currentUser.id,
+      id: recordId,
+      restoreWindowDays: 30,
+    },
+  ]);
+  assert.equal(json.data.record.id, recordId);
+  assert.equal("deletedAt" in json.data.record, false);
+  assert.equal("userId" in json.data.record, false);
+  assert.equal("currentVersionId" in json.data.record, false);
+  assertNoSensitiveOrInternalFields(json);
+});
+
+test("restore-deleted API returns 404 for missing or cross-owner records", async () => {
+  const response = await handleRestoreDeletedTripPlanRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async restoreDeletedTripPlanRecord(input) {
+      assert.deepEqual(input, {
+        userId: currentUser.id,
+        id: recordId,
+        restoreWindowDays: 30,
+      });
+
+      return { status: "not_found" };
+    },
+  });
+  const invalidIdResponse = await handleRestoreDeletedTripPlanRequest("not-a-record-id", {
+    requireCurrentUser: authenticatedUser,
+    async restoreDeletedTripPlanRecord() {
+      throw new Error("should not restore invalid ids");
+    },
+  });
+
+  for (const item of [response, invalidIdResponse]) {
+    const json = (await item.json()) as {
+      ok: false;
+      error: {
+        code: string;
+      };
+    };
+
+    assert.equal(item.status, 404);
+    assert.equal(json.ok, false);
+    assert.equal(json.error.code, "NOT_FOUND");
+    assertNoSensitiveOrInternalFields(json);
+  }
+});
+
+test("restore-deleted API returns 400 for expired deleted records", async () => {
+  const response = await handleRestoreDeletedTripPlanRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async restoreDeletedTripPlanRecord(input) {
+      assert.deepEqual(input, {
+        userId: currentUser.id,
+        id: recordId,
+        restoreWindowDays: 30,
+      });
+
+      return { status: "expired" };
+    },
+  });
+  const json = (await response.json()) as {
+    ok: false;
+    error: {
+      code: string;
+      message: string;
+    };
+  };
+
+  assert.equal(response.status, 400);
+  assert.equal(json.ok, false);
+  assert.equal(json.error.code, "BAD_REQUEST");
+  assert.doesNotMatch(json.error.message, /SQL|stack|DATABASE_URL|AUTH_SECRET/i);
+  assertNoSensitiveOrInternalFields(json);
+});
+
+test("deleted records remain hidden from normal detail, version, and public share APIs", async () => {
+  const detailResponse = await handleGetTripPlanDetailRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async getTripPlanRecordById(input) {
+      assert.deepEqual(input, { userId: currentUser.id, id: recordId });
+
+      return null;
+    },
+    async getCurrentTripPlanVersionForRecord() {
+      throw new Error("should not read current version for a deleted record");
+    },
+  });
+  const versionsResponse = await handleListTripPlanVersionsRequest(recordId, {
+    requireCurrentUser: authenticatedUser,
+    async listTripPlanVersionsForRecord(input) {
+      assert.deepEqual(input, {
+        userId: currentUser.id,
+        tripPlanRecordId: recordId,
+      });
+
+      return [];
+    },
+  });
+  const publicShareResponse = await handleGetPublicSharedTripRequest(validShareToken, {
+    async getPublicSharedTripByToken(input) {
+      assert.deepEqual(input, { token: validShareToken });
+
+      return null;
+    },
+  });
+
+  for (const response of [detailResponse, versionsResponse, publicShareResponse]) {
+    const json = (await response.json()) as {
+      ok: false;
+      error: {
+        code: string;
+      };
+    };
+
+    assert.equal(response.status, 404);
+    assert.equal(json.ok, false);
+    assert.equal(json.error.code, "NOT_FOUND");
+    assertNoSensitiveOrInternalFields(json);
+  }
 });
 
 test("versions list API returns only safe summaries for the current user's record", async () => {
@@ -1740,10 +2072,261 @@ test("public share repository hashes tokens, filters revoked or expired links, a
   assert.deepEqual(sharedTrip?.tripPlan, tripPlan);
 });
 
+test("soft delete repository marks owner active records deleted and revokes active shares", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/UPDATE trip_plan_records/i.test(text)) {
+        return {
+          rows: [
+            buildTripPlanRecordDbRow(tripPlan, {
+              updated_at: deletedAt,
+              deleted_at: deletedAt,
+            }),
+          ] as unknown as TRow[],
+        };
+      }
+
+      if (/UPDATE trip_plan_shares/i.test(text)) {
+        return {
+          rows: [] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+
+  const record = await softDeleteTripPlanRecord({
+    userId: currentUser.id,
+    id: recordId,
+    db,
+  });
+
+  assert.notEqual(record, null);
+  assert.equal(record?.deletedAt, deletedAt);
+  assert.equal(queries.length, 2);
+  assert.match(queries[0]?.text ?? "", /UPDATE trip_plan_records/i);
+  assert.match(queries[0]?.text ?? "", /deleted_at = now\(\)/i);
+  assert.match(queries[0]?.text ?? "", /WHERE id = \$1\s+AND user_id = \$2\s+AND deleted_at IS NULL/i);
+  assert.deepEqual(queries[0]?.values, [recordId, currentUser.id]);
+  assert.match(queries[1]?.text ?? "", /UPDATE trip_plan_shares/i);
+  assert.match(queries[1]?.text ?? "", /status = 'revoked'/i);
+  assert.match(queries[1]?.text ?? "", /revoked_at = COALESCE\(revoked_at, now\(\)\)/i);
+  assert.match(queries[1]?.text ?? "", /owner_user_id = \$1\s+AND trip_plan_record_id = \$2/i);
+  assert.match(queries[1]?.text ?? "", /status = 'active'/i);
+  assert.match(queries[1]?.text ?? "", /revoked_at IS NULL/i);
+  assert.deepEqual(queries[1]?.values, [currentUser.id, recordId]);
+});
+
+test("soft delete repository returns null without revoking shares when the owner active record is missing", async () => {
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/UPDATE trip_plan_records/i.test(text)) {
+        return {
+          rows: [] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+
+  const record = await softDeleteTripPlanRecord({
+    userId: currentUser.id,
+    id: recordId,
+    db,
+  });
+
+  assert.equal(record, null);
+  assert.equal(queries.length, 1);
+  assert.doesNotMatch(queries[0]?.text ?? "", /trip_plan_shares/i);
+});
+
+test("restore deleted repository enforces owner deleted records and clears deleted_at only within window", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const restoredAt = "2026-06-10T00:05:00.000Z";
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/SELECT \*/i.test(text) && /FOR UPDATE/i.test(text)) {
+        return {
+          rows: [
+            buildTripPlanRecordDbRow(tripPlan, {
+              updated_at: deletedAt,
+              deleted_at: deletedAt,
+            }),
+          ] as unknown as TRow[],
+        };
+      }
+
+      if (/AS is_expired/i.test(text)) {
+        return {
+          rows: [{ is_expired: false }] as unknown as TRow[],
+        };
+      }
+
+      if (/UPDATE trip_plan_records/i.test(text)) {
+        return {
+          rows: [
+            buildTripPlanRecordDbRow(tripPlan, {
+              updated_at: restoredAt,
+              deleted_at: null,
+            }),
+          ] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+
+  const result = await restoreDeletedTripPlanRecord({
+    userId: currentUser.id,
+    id: recordId,
+    restoreWindowDays: 30,
+    db,
+  });
+
+  assert.equal(result.status, "restored");
+
+  if (result.status !== "restored") {
+    throw new Error("Expected restore to succeed.");
+  }
+
+  assert.equal(result.record.deletedAt, null);
+  assert.equal(queries.length, 3);
+  assert.match(queries[0]?.text ?? "", /FROM trip_plan_records/i);
+  assert.match(queries[0]?.text ?? "", /WHERE id = \$1\s+AND user_id = \$2\s+AND deleted_at IS NOT NULL/i);
+  assert.match(queries[0]?.text ?? "", /FOR UPDATE/i);
+  assert.deepEqual(queries[0]?.values, [recordId, currentUser.id]);
+  assert.match(queries[1]?.text ?? "", /now\(\) - \(\$2::int \* interval '1 day'\)/i);
+  assert.deepEqual(queries[1]?.values, [deletedAt, 30]);
+  assert.match(queries[2]?.text ?? "", /deleted_at = NULL/i);
+  assert.match(queries[2]?.text ?? "", /WHERE id = \$1\s+AND user_id = \$2\s+AND deleted_at IS NOT NULL/i);
+  assert.doesNotMatch(queries.map((query) => query.text).join("\n"), /UPDATE trip_plan_shares/i);
+});
+
+test("restore deleted repository returns expired without clearing deleted_at or reactivating shares", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-05-01T00:00:00.000Z";
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      if (/SELECT \*/i.test(text) && /FOR UPDATE/i.test(text)) {
+        return {
+          rows: [
+            buildTripPlanRecordDbRow(tripPlan, {
+              deleted_at: deletedAt,
+            }),
+          ] as unknown as TRow[],
+        };
+      }
+
+      if (/AS is_expired/i.test(text)) {
+        return {
+          rows: [{ is_expired: true }] as unknown as TRow[],
+        };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+  };
+
+  const result = await restoreDeletedTripPlanRecord({
+    userId: currentUser.id,
+    id: recordId,
+    restoreWindowDays: 30,
+    db,
+  });
+
+  assert.deepEqual(result, { status: "expired" });
+  assert.equal(queries.length, 2);
+  assert.doesNotMatch(queries.map((query) => query.text).join("\n"), /deleted_at = NULL/i);
+  assert.doesNotMatch(queries.map((query) => query.text).join("\n"), /UPDATE trip_plan_shares/i);
+  assert.doesNotMatch(queries.map((query) => query.text).join("\n"), /status = 'active'/i);
+});
+
+test("deleted list repository reads only owner deleted record summaries", async () => {
+  const tripPlan = await buildValidTripPlan();
+  const deletedAt = "2026-06-10T00:00:00.000Z";
+  const queries: Array<{
+    text: string;
+    values: readonly unknown[] | undefined;
+  }> = [];
+  const db = {
+    async query<TRow extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: readonly unknown[],
+    ) {
+      queries.push({ text, values });
+
+      return {
+        rows: [
+          buildTripPlanRecordDbRow(tripPlan, {
+            deleted_at: deletedAt,
+          }),
+        ] as unknown as TRow[],
+      };
+    },
+  };
+
+  const records = await listDeletedTripPlanRecordsByUser({
+    userId: currentUser.id,
+    db,
+  });
+
+  assert.equal(records.length, 1);
+  assert.equal(records[0]?.deletedAt, deletedAt);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0]?.text ?? "", /FROM trip_plan_records/i);
+  assert.match(queries[0]?.text ?? "", /WHERE user_id = \$1\s+AND deleted_at IS NOT NULL/i);
+  assert.match(queries[0]?.text ?? "", /ORDER BY deleted_at DESC, updated_at DESC/i);
+  assert.doesNotMatch(queries[0]?.text ?? "", /trip_plan_snapshot|token_hash|trip_plan_shares/i);
+  assert.deepEqual(queries[0]?.values, [currentUser.id, 50]);
+});
+
 test("trip history and share routes require current user without adding UI or admin routes", async () => {
   const repoRoot = process.cwd();
   const routePaths = [
     path.join(repoRoot, "src", "app", "api", "travel-plans", "route.ts"),
+    path.join(repoRoot, "src", "app", "api", "travel-plans", "deleted", "route.ts"),
     path.join(repoRoot, "src", "app", "api", "travel-plans", "save", "route.ts"),
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "route.ts"),
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "versions", "route.ts"),
@@ -1759,6 +2342,16 @@ test("trip history and share routes require current user without adding UI or ad
       "route.ts",
     ),
     path.join(repoRoot, "src", "app", "api", "travel-plans", "[id]", "restore", "route.ts"),
+    path.join(
+      repoRoot,
+      "src",
+      "app",
+      "api",
+      "travel-plans",
+      "[id]",
+      "restore-deleted",
+      "route.ts",
+    ),
     path.join(
       repoRoot,
       "src",

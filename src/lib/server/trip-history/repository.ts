@@ -220,6 +220,37 @@ export type ListTripPlanRecordsByUserInput = {
   db?: Queryable;
 };
 
+export type ListDeletedTripPlanRecordsByUserInput = {
+  userId: string;
+  limit?: number;
+  db?: Queryable;
+};
+
+export type SoftDeleteTripPlanRecordInput = {
+  userId: string;
+  id: string;
+  db?: Queryable;
+};
+
+export type RestoreDeletedTripPlanRecordInput = {
+  userId: string;
+  id: string;
+  restoreWindowDays: number;
+  db?: Queryable;
+};
+
+export type RestoreDeletedTripPlanRecordResult =
+  | {
+      status: "restored";
+      record: TripPlanRecord;
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      status: "expired";
+    };
+
 export type CreateTripPlanShareLinkInput = {
   userId: string;
   tripPlanRecordId: string;
@@ -408,6 +439,14 @@ function normalizeLimit(limit: number | undefined) {
   }
 
   return limit;
+}
+
+function normalizeRestoreWindowDays(value: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 365) {
+    throw new TripPlanRepositoryError("restoreWindowDays must be an integer from 1 to 365.");
+  }
+
+  return value;
 }
 
 async function readNextVersionNumber(db: Queryable, tripPlanRecordId: string, userId: string) {
@@ -811,6 +850,138 @@ export async function listTripPlanRecordsByUser(input: ListTripPlanRecordsByUser
   );
 
   return result.rows.map(mapTripPlanRecord);
+}
+
+export async function listDeletedTripPlanRecordsByUser(
+  input: ListDeletedTripPlanRecordsByUserInput,
+) {
+  const userId = assertUuid(input.userId, "userId");
+  const limit = normalizeLimit(input.limit);
+  const db = getDb(input.db);
+  const result = await db.query<TripPlanRecordDbRow>(
+    `
+      SELECT *
+      FROM trip_plan_records
+      WHERE user_id = $1
+        AND deleted_at IS NOT NULL
+      ORDER BY deleted_at DESC, updated_at DESC
+      LIMIT $2
+    `,
+    [userId, limit],
+  );
+
+  return result.rows.map(mapTripPlanRecord);
+}
+
+export async function softDeleteTripPlanRecord(input: SoftDeleteTripPlanRecordInput) {
+  const userId = assertUuid(input.userId, "userId");
+  const id = assertUuid(input.id, "id");
+
+  return withTransaction(input.db, async (db) => {
+    const recordResult = await db.query<TripPlanRecordDbRow>(
+      `
+        UPDATE trip_plan_records
+        SET
+          deleted_at = now(),
+          updated_at = now()
+        WHERE id = $1
+          AND user_id = $2
+          AND deleted_at IS NULL
+        RETURNING *
+      `,
+      [id, userId],
+    );
+    const recordRow = recordResult.rows[0];
+
+    if (recordRow === undefined) {
+      return null;
+    }
+
+    await db.query(
+      `
+        UPDATE trip_plan_shares
+        SET
+          status = 'revoked',
+          revoked_at = COALESCE(revoked_at, now()),
+          updated_at = now()
+        WHERE owner_user_id = $1
+          AND trip_plan_record_id = $2
+          AND status = 'active'
+          AND revoked_at IS NULL
+      `,
+      [userId, id],
+    );
+
+    return mapTripPlanRecord(recordRow);
+  });
+}
+
+export async function restoreDeletedTripPlanRecord(
+  input: RestoreDeletedTripPlanRecordInput,
+): Promise<RestoreDeletedTripPlanRecordResult> {
+  const userId = assertUuid(input.userId, "userId");
+  const id = assertUuid(input.id, "id");
+  const restoreWindowDays = normalizeRestoreWindowDays(input.restoreWindowDays);
+
+  return withTransaction(input.db, async (db) => {
+    const recordResult = await db.query<TripPlanRecordDbRow>(
+      `
+        SELECT *
+        FROM trip_plan_records
+        WHERE id = $1
+          AND user_id = $2
+          AND deleted_at IS NOT NULL
+        FOR UPDATE
+      `,
+      [id, userId],
+    );
+    const recordRow = recordResult.rows[0];
+
+    if (recordRow === undefined) {
+      return {
+        status: "not_found",
+      };
+    }
+
+    const restoreWindowResult = await db.query<{ is_expired: boolean }>(
+      `
+        SELECT $1::timestamptz < now() - ($2::int * interval '1 day') AS is_expired
+      `,
+      [recordRow.deleted_at, restoreWindowDays],
+    );
+
+    if (restoreWindowResult.rows[0]?.is_expired === true) {
+      return {
+        status: "expired",
+      };
+    }
+
+    const restoredResult = await db.query<TripPlanRecordDbRow>(
+      `
+        UPDATE trip_plan_records
+        SET
+          deleted_at = NULL,
+          updated_at = now()
+        WHERE id = $1
+          AND user_id = $2
+          AND deleted_at IS NOT NULL
+        RETURNING *
+      `,
+      [id, userId],
+    );
+    const restoredRow = restoredResult.rows[0];
+
+    if (restoredRow === undefined) {
+      return {
+        status: "not_found",
+      };
+    }
+
+    return {
+      status: "restored",
+      record: mapTripPlanRecord(restoredRow),
+    };
+  });
 }
 
 export async function createTripPlanShareLink(input: CreateTripPlanShareLinkInput) {

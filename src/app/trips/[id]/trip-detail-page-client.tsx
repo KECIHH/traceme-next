@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { TripPlanResult } from "@/components/trip/trip-plan-result";
 import {
+  deleteTripPlanClient,
   getSavedTripPlanDetail,
   getSavedTripPlanSourceLabel,
   getTripPlanVersionClient,
@@ -67,6 +69,16 @@ type VersionPreviewState =
   | {
       status: "error";
       error: TripHistoryClientError;
+    };
+
+type DeleteTripFeedback =
+  | {
+      tone: "success";
+      message: string;
+    }
+  | {
+      tone: "error";
+      message: string;
     };
 
 function formatDateTime(value: string) {
@@ -188,6 +200,57 @@ function DetailSummary({ detail }: { detail: SavedTripPlanDetail }) {
           </dd>
         </div>
       </dl>
+    </section>
+  );
+}
+
+function DeleteTripPanel({
+  isDeleting,
+  feedback,
+  onDelete,
+}: {
+  isDeleting: boolean;
+  feedback: DeleteTripFeedback | null;
+  onDelete(): void;
+}) {
+  return (
+    <section
+      className="rounded-md border border-red-100 bg-white p-5 shadow-sm"
+      data-print-hidden="true"
+      aria-label="行程管理"
+    >
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-red-700">行程管理</p>
+          <h2 className="mt-2 break-words text-2xl font-semibold tracking-tight text-zinc-950">
+            删除这份行程
+          </h2>
+          <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-zinc-600">
+            删除后会移出我的行程，可在 30 天内到最近删除恢复。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={isDeleting}
+          className="shrink-0 rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-red-700 ring-1 ring-red-200 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 disabled:ring-zinc-200"
+        >
+          {isDeleting ? "正在删除..." : "删除行程"}
+        </button>
+      </div>
+
+      {feedback ? (
+        <p
+          aria-live="polite"
+          className={`mt-4 break-words rounded-md px-3 py-2 text-sm leading-6 ${
+            feedback.tone === "success"
+              ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+              : "bg-red-50 text-red-800 ring-1 ring-red-200"
+          }`}
+        >
+          {feedback.message}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -386,6 +449,7 @@ function VersionPreview({ version }: { version: SavedTripPlanVersionDetail }) {
 }
 
 export function TripDetailPageClient({ id }: { id: string }) {
+  const router = useRouter();
   const [detailState, setDetailState] = useState<TripDetailState>({ status: "loading" });
   const [versionsState, setVersionsState] = useState<TripVersionsState>({
     status: "loading",
@@ -396,6 +460,8 @@ export function TripDetailPageClient({ id }: { id: string }) {
   const [restoreFeedback, setRestoreFeedback] =
     useState<TripPlanVersionRestoreFeedbackView | null>(null);
   const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
+  const [deleteFeedback, setDeleteFeedback] = useState<DeleteTripFeedback | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadTripDetail = useCallback(async () => {
     const result = await getSavedTripPlanDetail(id);
@@ -443,6 +509,8 @@ export function TripDetailPageClient({ id }: { id: string }) {
       setPreviewState({ status: "idle" });
       setRestoreFeedback(null);
       setRestoringVersionId(null);
+      setDeleteFeedback(null);
+      setIsDeleting(false);
 
       const result = await getSavedTripPlanDetail(id);
 
@@ -542,6 +610,43 @@ export function TripDetailPageClient({ id }: { id: string }) {
     setRestoringVersionId(null);
   }
 
+  async function handleDelete() {
+    if (detailState.status !== "success" || isDeleting) {
+      return;
+    }
+
+    const title = detailState.detail.record.title;
+    const confirmed = window.confirm(
+      `确认删除“${title}”吗？删除后会移出我的行程，可在 30 天内到最近删除恢复。`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteFeedback(null);
+
+    const result = await deleteTripPlanClient(id);
+
+    if (!result.ok) {
+      setIsDeleting(false);
+      setDeleteFeedback({
+        tone: "error",
+        message: result.error.message,
+      });
+      return;
+    }
+
+    setDeleteFeedback({
+      tone: "success",
+      message: "已从我的行程移除，正在返回我的行程。可在 30 天内到最近删除恢复。",
+    });
+    window.setTimeout(() => {
+      router.push("/trips");
+    }, 700);
+  }
+
   const isUnauthorized =
     detailState.status === "error" && detailState.error.kind === "unauthorized";
 
@@ -563,6 +668,11 @@ export function TripDetailPageClient({ id }: { id: string }) {
         {detailState.status === "success" ? (
           <>
             <DetailSummary detail={detailState.detail} />
+            <DeleteTripPanel
+              isDeleting={isDeleting}
+              feedback={deleteFeedback}
+              onDelete={handleDelete}
+            />
             <TripPlanResult
               tripPlan={detailState.detail.currentVersion.tripPlan}
               showDebugJson={false}
