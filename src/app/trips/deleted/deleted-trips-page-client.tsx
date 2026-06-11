@@ -89,7 +89,7 @@ function EmptyState() {
     <section className="rounded-md border border-dashed border-zinc-300 bg-white/75 p-6 text-center">
       <h2 className="text-xl font-semibold text-zinc-950">暂无最近删除的行程</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-600">
-        删除后的行程会暂时显示在这里，并可在 30 天内恢复。
+        删除后的行程会暂时显示在这里，并可在 30 天内恢复；恢复后旧分享链接不会自动恢复。
       </p>
       <Link
         href="/trips"
@@ -215,7 +215,7 @@ export function DeletedTripsPageClient() {
 
   async function handleRestore(record: DeletedTripPlanSummary) {
     const confirmed = window.confirm(
-      `确认恢复“${record.title}”吗？恢复后会重新回到我的行程，旧分享链接不会自动恢复。`,
+      `确认恢复“${record.title}”吗？恢复后会重新回到我的行程，旧分享链接不会自动恢复，需要在详情页重新创建分享链接。`,
     );
 
     if (!confirmed) {
@@ -249,7 +249,8 @@ export function DeletedTripsPageClient() {
     setRestoringId(null);
     setRestoreFeedback({
       tone: "success",
-      message: "行程已恢复到我的行程。",
+      message:
+        "行程已恢复到我的行程。旧分享链接不会自动恢复，需要在详情页重新创建分享链接。",
       restoredId: record.id,
     });
   }
@@ -266,7 +267,7 @@ export function DeletedTripsPageClient() {
               最近删除
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-              这里仅显示当前账号自己的已删除行程摘要，可在 30 天内恢复。
+              这里仅显示当前账号自己的已删除行程摘要，可在 30 天内恢复；恢复后旧分享链接不会自动恢复。
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">

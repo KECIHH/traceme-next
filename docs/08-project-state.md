@@ -1,3 +1,40 @@
+# Project State - MVP Round 41
+## Round 41 Current State
+- Round 41 is a personal-workbench usability验收与小修 round. It tightened the current mainline pages (`/`, `/trips`, `/trips/[id]`, `/trips/deleted`, `/shared/trips/[token]`) without changing core API behavior.
+- The home page now hides the developer JSON preview by passing `showDebugJson={false}` to the result component; save, copy, download, print, and comparison remain available.
+- `/trips`, `/trips/[id]`, and `/trips/deleted` now use clearer copy for manual save, soft delete, 30-day restore, old share-link invalidation, and the need to create a fresh share link after restore.
+- The owner share-list summary now says `创建时的固定快照` instead of exposing an internal version identifier.
+- Targeted test coverage was updated for delete/restore wording and share-summary wording. No API behavior, database behavior, or share-token handling changed.
+- Actual files changed in Round 41: `src/app/page.tsx`, `src/app/trips/trips-page-client.tsx`, `src/app/trips/[id]/trip-detail-page-client.tsx`, `src/app/trips/deleted/deleted-trips-page-client.tsx`, `src/app/trips/deleted/page.tsx`, `src/lib/services/trip-share-view.ts`, `tests/delete-restore-ui.test.ts`, `tests/trip-share-view.test.ts`, and this file.
+- Existing unrelated deployment / preproduction working-tree changes were intentionally left untouched.
+
+## Round 41 Boundaries
+- Only UI copy, the home-page debug preview toggle, share-summary wording, targeted tests, and project-state documentation were changed.
+- No admin backend, maps, weather, search, productionization, domain, HTTPS, reverse proxy, core API behavior, schema, migration, or hard-delete work was added.
+- No client-side database access was added.
+- No `.env`, `.env.local`, real IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, API key, bearer token, authorization header, raw share token, `tokenHash`, SQL detail, or stack trace was recorded.
+- Existing unrelated deployment / preproduction changes in the working tree were not modified.
+
+## Round 41 Verification
+- `node --conditions=react-server --import tsx --test tests/delete-restore-ui.test.ts tests/trip-share-view.test.ts`: passed.
+- `npm test`: passed, 112 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route table still includes `/trips`, `/trips/[id]`, `/trips/deleted`, and `/shared/trips/[token]`.
+- `npx tsc --noEmit`: passed.
+- Static safety scan: public share page remains read-only and the reviewed pages/services do not expose `userId`, `tokenHash`, connection strings, secrets, SQL, or stack traces.
+- Browser acceptance partially completed against `[本地验证 URL]`: homepage loaded with global navigation and unauthenticated status, generation succeeded, comparison suggestions rendered, the save action showed the unauthenticated login prompt instead of saving, copy fallback exposed Markdown text, Markdown download showed page feedback, `/trips` and `/trips/deleted` showed clear unauthenticated states, and an unavailable public share URL showed the generic read-only unavailable page without owner actions or sensitive text. This is a verification limitation, not a product regression.
+- Browser acceptance not completed for the authenticated save/list/detail/version/share/delete/recently-deleted/restore loop because no logged-in test session was available in this browser. Download file contents and the system print/PDF dialog were also not verified.
+
+## Round 41 Review Follow-up
+- Review found no P0 or P1 issues and no code behavior defect requiring a source change.
+- Follow-up change is documentation-only: clarified that the missing authenticated browser loop is an environment verification limitation, not a product regression.
+- Existing unrelated deployment / preproduction working-tree changes remain outside Round 41 and were not modified by this follow-up.
+- Post-follow-up verification: `npm test`, `npm run lint`, `npm run build`, and `npx tsc --noEmit` all passed.
+
+## Round 41 Record Time
+- Date: 2026-06-11 (Asia/Shanghai)
+- Stage: MVP personal-workbench usability round 41
+
 # Project State - MVP Round 40
 ## Round 40 Current State
 - Round 40 adds the minimum owner-only delete / restore-deleted UI on top of the Round 38 API boundary.

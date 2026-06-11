@@ -38,6 +38,10 @@ test("delete and restore UI copy avoids misleading destructive wording", async (
   assert.doesNotMatch(source, /hard delete|永久删除|物理删除/i);
   assert.match(source, /30 天/);
   assert.match(source, /最近删除/);
+  assert.match(source, /软删除/);
+  assert.match(source, /旧分享链接/);
+  assert.match(source, /不会自动恢复|已不可用/);
+  assert.match(source, /重新创建分享链接/);
 });
 
 test("delete and restore UI source avoids sensitive fields and browser TripPlan storage", async () => {

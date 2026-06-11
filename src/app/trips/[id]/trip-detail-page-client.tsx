@@ -226,7 +226,7 @@ function DeleteTripPanel({
             删除这份行程
           </h2>
           <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-zinc-600">
-            删除后会移出我的行程，可在 30 天内到最近删除恢复。
+            删除是软删除：会移出我的行程并让原分享链接不可用，可在 30 天内到最近删除恢复；恢复后需要重新创建分享链接。
           </p>
         </div>
         <button
@@ -617,7 +617,7 @@ export function TripDetailPageClient({ id }: { id: string }) {
 
     const title = detailState.detail.record.title;
     const confirmed = window.confirm(
-      `确认删除“${title}”吗？删除后会移出我的行程，可在 30 天内到最近删除恢复。`,
+      `确认删除“${title}”吗？这是软删除：会移出我的行程并让原分享链接不可用，可在 30 天内到最近删除恢复；恢复后需要重新创建分享链接。`,
     );
 
     if (!confirmed) {
@@ -640,7 +640,8 @@ export function TripDetailPageClient({ id }: { id: string }) {
 
     setDeleteFeedback({
       tone: "success",
-      message: "已从我的行程移除，正在返回我的行程。可在 30 天内到最近删除恢复。",
+      message:
+        "已移入最近删除，正在返回我的行程。可在 30 天内恢复；旧分享链接已不可用，恢复后需要重新创建分享链接。",
     });
     window.setTimeout(() => {
       router.push("/trips");

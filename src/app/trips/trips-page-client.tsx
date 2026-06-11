@@ -88,7 +88,7 @@ function EmptyState() {
     <section className="rounded-md border border-dashed border-zinc-300 bg-white/75 p-6 text-center">
       <h2 className="text-xl font-semibold text-zinc-950">当前还没有保存的行程</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-600">
-        生成页面不会自动保存行程；只有通过受保护保存 API 创建过的记录才会出现在这里。
+        生成页面不会自动保存行程；只有手动保存成功的记录才会出现在这里。
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <Link
@@ -226,7 +226,7 @@ export function TripsPageClient() {
 
   async function handleDelete(record: SavedTripPlanSummary) {
     const confirmed = window.confirm(
-      `确认删除“${record.title}”吗？删除后会移出我的行程，可在 30 天内到最近删除恢复。`,
+      `确认删除“${record.title}”吗？这是软删除：会移出我的行程并让原分享链接不可用，可在 30 天内到最近删除恢复；恢复后需要重新创建分享链接。`,
     );
 
     if (!confirmed) {
@@ -260,7 +260,8 @@ export function TripsPageClient() {
     setDeletingId(null);
     setDeleteFeedback({
       tone: "success",
-      message: "已从我的行程移除，可在 30 天内到最近删除恢复。",
+      message:
+        "已移入最近删除，可在 30 天内恢复。旧分享链接已不可用，恢复后需要重新创建分享链接。",
     });
   }
 
@@ -276,7 +277,7 @@ export function TripsPageClient() {
               我的行程
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-              这里显示当前账号已保存的行程，可查看详情，也可以将不再需要的行程移入最近删除。
+              这里显示当前账号已保存的行程，可查看详情，也可以将不再需要的行程软删除到最近删除；旧分享链接会随删除失效。
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">

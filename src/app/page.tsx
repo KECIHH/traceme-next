@@ -198,7 +198,11 @@ export default function Home() {
                   disabled={isLoading}
                   onGenerate={generateComparison}
                 />
-                <TripPlanResult tripPlan={tripPlan} showSaveAction />
+                <TripPlanResult
+                  tripPlan={tripPlan}
+                  showDebugJson={false}
+                  showSaveAction
+                />
               </>
             ) : (
               <section
@@ -207,7 +211,7 @@ export default function Home() {
               >
                 <h2 className="text-lg font-semibold text-zinc-950">结果预览</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  成功生成后，这里会优先展示完整 TripPlanResult，覆盖每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、自行确认事项和免责声明。
+                  成功生成后，这里会展示完整旅行计划草稿，覆盖每日行程、景点、餐饮、住宿、交通、预算、准备清单、风险提醒、自行确认事项和免责声明。
                   生成计划后，你可以查看完整行程，并复制全文、下载 Markdown 或使用浏览器打印/保存 PDF。
                 </p>
               </section>

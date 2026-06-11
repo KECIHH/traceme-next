@@ -48,7 +48,7 @@ export function buildShareLinkSummaryView(
     tokenPreviewLabel: `链接尾号 ${share.tokenPreview}`,
     statusLabel: isRevoked ? "已撤销" : "可访问",
     statusTone: isRevoked ? "revoked" : "active",
-    versionLabel: `固定快照 ${share.versionId}`,
+    versionLabel: "创建时的固定快照",
     createdAtLabel: formatDateTime(share.createdAt),
     expiresAtLabel:
       share.expiresAt === null ? "不自动失效" : formatDateTime(share.expiresAt),

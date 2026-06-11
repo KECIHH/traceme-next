@@ -27,6 +27,9 @@ const share: SavedTripPlanShareSummary = {
   updatedAt: "2026-06-09T00:00:01.000Z",
 };
 
+const uuidPattern =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
 function assertNoSensitiveText(value: unknown) {
   assert.doesNotMatch(
     JSON.stringify(value),
@@ -45,8 +48,10 @@ test("share link view exposes safe owner summary and revoke copy", () => {
 
   assert.equal(activeView.tokenPreviewLabel, "链接尾号 aaaaaaaa");
   assert.equal(activeView.statusLabel, "可访问");
+  assert.equal(activeView.versionLabel, "创建时的固定快照");
   assert.equal(activeView.expiresAtLabel, "不自动失效");
   assert.equal(activeView.canRevoke, true);
+  assert.doesNotMatch(JSON.stringify(activeView), uuidPattern);
   assert.equal(revokedView.statusLabel, "已撤销");
   assert.equal(revokedView.canRevoke, false);
   assert.match(confirmMessage, /撤销后/);
