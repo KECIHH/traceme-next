@@ -132,13 +132,34 @@ function LoginGuide({ id }: { id: string }) {
   );
 }
 
-function ErrorState({ error }: { error: TripHistoryClientError }) {
+function ErrorState({
+  error,
+  onRetry,
+}: {
+  error: TripHistoryClientError;
+  onRetry(): void;
+}) {
   return (
     <section className="rounded-md border border-red-200 bg-red-50 p-5">
       <p className="text-sm font-semibold text-red-900">
         {error.kind === "not_found" ? "没有找到这份行程" : "无法加载行程详情"}
       </p>
       <p className="mt-2 text-sm leading-6 text-red-800">{error.message}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+        >
+          重试加载
+        </button>
+        <Link
+          href="/trips"
+          className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-red-900 ring-1 ring-red-200 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+        >
+          返回我的行程
+        </Link>
+      </div>
     </section>
   );
 }
@@ -562,6 +583,50 @@ export function TripDetailPageClient({ id }: { id: string }) {
     };
   }, [id]);
 
+  async function handleRetryLoad() {
+    setDetailState({ status: "loading" });
+    setVersionsState({ status: "loading" });
+    setPreviewState({ status: "idle" });
+    setRestoreFeedback(null);
+    setRestoringVersionId(null);
+    setDeleteFeedback(null);
+    setIsDeleting(false);
+
+    const result = await getSavedTripPlanDetail(id);
+
+    if (result.ok) {
+      setDetailState({
+        status: "success",
+        detail: result.data,
+      });
+
+      const versionsResult = await listTripPlanVersionsClient(id);
+
+      if (versionsResult.ok) {
+        setVersionsState({
+          status: "success",
+          versions: versionsResult.data.versions,
+        });
+        return;
+      }
+
+      setVersionsState({
+        status: "error",
+        error: versionsResult.error,
+      });
+      return;
+    }
+
+    setDetailState({
+      status: "error",
+      error: result.error,
+    });
+    setVersionsState({
+      status: "error",
+      error: result.error,
+    });
+  }
+
   async function handlePreview(version: SavedTripPlanVersionSummary) {
     setRestoreFeedback(null);
     setPreviewState({
@@ -663,7 +728,7 @@ export function TripDetailPageClient({ id }: { id: string }) {
         {isUnauthorized ? <LoginGuide id={id} /> : null}
 
         {detailState.status === "error" && !isUnauthorized ? (
-          <ErrorState error={detailState.error} />
+          <ErrorState error={detailState.error} onRetry={() => void handleRetryLoad()} />
         ) : null}
 
         {detailState.status === "success" ? (

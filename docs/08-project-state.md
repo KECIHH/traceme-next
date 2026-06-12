@@ -2610,3 +2610,13 @@
 - Current fact reminder: delete / recently deleted / restore-deleted UI is already implemented and should be accepted as an existing path, not planned as a missing feature.
 - No source, tests, schema, API, database, scripts, package files, admin, production, maps, weather, search, hard-delete, Auth, DB schema/migration, sharing permission, or core API contract work was changed.
 - No `.env`, `.env.local`, real account, real domain, real IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer/header value, raw share token, token hash, owner email, SQL detail, or stack trace was recorded.
+
+# Project State - MVP Round 51
+
+- Round 51 polished only owner workbench loading-error recovery for `/trips`, `/trips/deleted`, and `/trips/[id]`.
+- Existing unauthenticated states keep their login guidance. Other load failures now expose `重试加载` and a safe return entry: `/trips` returns to the generator, while `/trips/deleted` and `/trips/[id]` return to `我的行程`.
+- Retry actions reuse the existing client read functions only. No API, schema, database, Auth, permissions, owner boundary, delete/restore-deleted behavior, version restore behavior, share create/copy/revoke behavior, or public share behavior was changed.
+- `tests/delete-restore-ui.test.ts` now covers the retry and return-entry copy while keeping the existing sensitive-field and browser-storage boundary checks.
+- Verification passed: targeted `tests/delete-restore-ui.test.ts` (3 tests), `npm test` (115 tests), `npm run lint`, `npm run build`, and `npx tsc --noEmit`.
+- Browser check: a temporary production local service at `[本地验证 URL]` confirmed `/trips` and `/trips/deleted` still show the unauthenticated login guidance and do not show the non-login retry error card; the temporary service was stopped after the check.
+- No `.env`, `.env.local`, real account, real domain, real IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer/header value, raw share token, token hash, owner email, SQL detail, or stack trace was recorded.

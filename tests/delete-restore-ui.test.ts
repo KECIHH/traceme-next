@@ -24,9 +24,13 @@ const uiSourcePaths = [
   ),
 ];
 
+async function readSource(sourcePath: string) {
+  return readFile(sourcePath, "utf8");
+}
+
 async function readUiSource() {
   const sources = await Promise.all(
-    uiSourcePaths.map(async (sourcePath) => readFile(sourcePath, "utf8")),
+    uiSourcePaths.map(async (sourcePath) => readSource(sourcePath)),
   );
 
   return sources.join("\n");
@@ -42,6 +46,21 @@ test("delete and restore UI copy avoids misleading destructive wording", async (
   assert.match(source, /旧分享链接/);
   assert.match(source, /不会自动恢复|已不可用/);
   assert.match(source, /重新创建分享链接/);
+});
+
+test("owner workbench error states expose retry and return actions", async () => {
+  const [tripsSource, tripDetailSource, deletedTripsSource] = await Promise.all([
+    readSource(uiSourcePaths[0]),
+    readSource(uiSourcePaths[1]),
+    readSource(uiSourcePaths[3]),
+  ]);
+
+  assert.match(tripsSource, /重试加载/);
+  assert.match(tripsSource, /返回生成页/);
+  assert.match(deletedTripsSource, /重试加载/);
+  assert.match(deletedTripsSource, /返回我的行程/);
+  assert.match(tripDetailSource, /重试加载/);
+  assert.match(tripDetailSource, /返回我的行程/);
 });
 
 test("delete and restore UI source avoids sensitive fields and browser TripPlan storage", async () => {
