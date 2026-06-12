@@ -1,5 +1,7 @@
 # AI 旅行计划生成与管理网站 - AI Prompt 与校验策略
 
+> **状态说明（第 49 轮）**：本文是历史设计/早期 MVP 参考，保留用于追溯旧规划，不再作为当前执行依据。当前事实以 `docs/00-project-brief-and-roadmap.md`、`docs/08-project-state.md`、`docs/13-next-feature-roadmap.md`、`docs/14-delete-restore-design.md` 和当前代码为准。
+
 ## 关键假设
 
 - AI 调用只发生在服务端。
@@ -210,4 +212,3 @@ AI_MODEL=...
 - AI 输出不能省略 `verificationItems` 和 `disclaimer`。
 - 易变化信息不得以确定事实展示。
 - 解析失败或校验失败时，API 返回可理解错误，不让前端收到半成品 `TripPlan`。
-

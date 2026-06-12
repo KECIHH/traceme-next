@@ -1,5 +1,7 @@
 # MVP 发布检查清单
 
+> **状态说明（第 49 轮）**：本文是历史 MVP 发布检查清单和阶段验收参考，保留用于追溯旧发布口径，不再作为当前执行依据。当前事实以 `docs/00-project-brief-and-roadmap.md`、`docs/08-project-state.md`、`docs/13-next-feature-roadmap.md`、`docs/14-delete-restore-design.md` 和当前代码为准。
+
 本文档用于第 15 轮 MVP 部署环境确认与部署验收。当前发布对象仍是旅行计划草稿生成 MVP，不包含数据库、登录、地图、天气、联网搜索、服务端 PDF 导出、精确排版 PDF、版本历史、方案对比或行程优化。
 
 ## 发布前命令检查

@@ -1,5 +1,7 @@
 # AI 旅行计划生成与管理网站 - 技术架构
 
+> **状态说明（第 49 轮）**：本文是历史设计/早期 MVP 参考，保留用于追溯旧规划，不再作为当前执行依据。当前事实以 `docs/00-project-brief-and-roadmap.md`、`docs/08-project-state.md`、`docs/13-next-feature-roadmap.md`、`docs/14-delete-restore-design.md` 和当前代码为准。
+
 ## 关键假设
 
 - 新项目使用 Next.js App Router、TypeScript、Tailwind CSS。

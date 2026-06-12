@@ -1,5 +1,7 @@
 # AI 旅行计划生成与管理网站 - 数据与 API 设计
 
+> **状态说明（第 49 轮）**：本文是历史设计/早期 MVP 参考，保留用于追溯旧规划，不再作为当前执行依据。当前事实以 `docs/00-project-brief-and-roadmap.md`、`docs/08-project-state.md`、`docs/13-next-feature-roadmap.md`、`docs/14-delete-restore-design.md` 和当前代码为准。
+
 ## 关键假设
 
 - MVP 没有数据库，所有数据只在一次请求和一次页面会话中使用。
@@ -308,4 +310,3 @@ MVP 可先用 schema 保证字段结构，再用单独 helper 做 `days` 和 `da
 ```
 
 示例中的数组在真实实现中不得为空，应由 AI 或 mock 数据填充完整内容。
-

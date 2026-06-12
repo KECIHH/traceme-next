@@ -2593,3 +2593,11 @@
 ## 下一步建议
 
 当前建议以第 15 轮部署验收状态为准：本地生产模式、mock 路径、缺配置错误路径和真实 `AI_PROVIDER=openai-compatible` 路径均已通过验收；Docker Compose 配置和部署脚本已补齐，但本机 Docker daemon 未启动，容器运行级验证仍需在云服务器或可用 Docker 环境中执行。下一步是在目标云服务器配置服务端环境变量，执行 `scripts/deploy-docker-compose.sh` 或 README 中的一行部署命令，记录部署 URL，并按 `docs/09-release-checklist.md` 对部署 URL 执行 smoke test。后续仍需保持服务端读取密钥、前端不暴露密钥、保留 mock provider 边界、继续使用 `POST /api/travel-plans/generate`，并继续后置数据库、登录、地图、天气、搜索增强、PDF 导出、版本历史、方案对比和行程优化。
+
+# Project State - MVP Round 49
+
+- Round 49 was a documentation-only identity-labeling round for old MVP documents.
+- Added top status notes to `docs/01-product-plan.md` through `docs/07-implementation-tasks.md` and `docs/09-release-checklist.md`, marking them as historical design / early MVP references rather than current execution sources.
+- Current facts remain governed by `docs/00-project-brief-and-roadmap.md`, this file, `docs/13-next-feature-roadmap.md`, `docs/14-delete-restore-design.md`, and the current code.
+- No source, tests, schema, API, database, scripts, package files, admin, production, maps, weather, search, or hard-delete work was changed.
+- Verification passed: `npm test` (114 tests), `npm run lint`, `npm run build`, and `npx tsc --noEmit`.

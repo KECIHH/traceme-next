@@ -1,5 +1,7 @@
 # AI 旅行计划生成与管理网站 - Implementation Tasks
 
+> **状态说明（第 49 轮）**：本文是历史设计/早期 MVP 参考，保留用于追溯旧规划，不再作为当前执行依据。当前事实以 `docs/00-project-brief-and-roadmap.md`、`docs/08-project-state.md`、`docs/13-next-feature-roadmap.md`、`docs/14-delete-restore-design.md` 和当前代码为准。
+
 ## 关键假设
 
 - 当前仓库只有文档，后续编码 Agent 需要从项目初始化开始。
