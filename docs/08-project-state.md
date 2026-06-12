@@ -2601,3 +2601,12 @@
 - Current facts remain governed by `docs/00-project-brief-and-roadmap.md`, this file, `docs/13-next-feature-roadmap.md`, `docs/14-delete-restore-design.md`, and the current code.
 - No source, tests, schema, API, database, scripts, package files, admin, production, maps, weather, search, or hard-delete work was changed.
 - Verification passed: `npm test` (114 tests), `npm run lint`, `npm run build`, and `npx tsc --noEmit`.
+
+# Project State - MVP Round 50
+
+- Round 50 is a documentation-only current-mainline acceptance baseline round for the personal beta workbench.
+- Added `docs/18-current-workbench-acceptance.md` as the unified checklist for generation, comparison, export, login/save, `/trips`, `/trips/[id]`, version restore, share create/copy/revoke, public read-only pages, soft delete, `/trips/deleted`, restore-deleted, and old-share-unavailable-after-restore acceptance.
+- Added one short reference from `docs/00-project-brief-and-roadmap.md` to the new acceptance baseline.
+- Current fact reminder: delete / recently deleted / restore-deleted UI is already implemented and should be accepted as an existing path, not planned as a missing feature.
+- No source, tests, schema, API, database, scripts, package files, admin, production, maps, weather, search, hard-delete, Auth, DB schema/migration, sharing permission, or core API contract work was changed.
+- No `.env`, `.env.local`, real account, real domain, real IP, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer/header value, raw share token, token hash, owner email, SQL detail, or stack trace was recorded.

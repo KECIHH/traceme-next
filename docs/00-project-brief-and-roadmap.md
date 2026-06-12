@@ -24,6 +24,8 @@ TraceMe Next is not currently:
 - An authoritative itinerary guarantee tool.
 - A productionization track for domain, HTTPS, reverse proxy, or public infrastructure work.
 
+Current personal beta workbench acceptance baseline: [docs/18-current-workbench-acceptance.md](18-current-workbench-acceptance.md).
+
 ## Implemented Capabilities
 
 - Travel-plan generation through `POST /api/travel-plans/generate`, with `mock` and `openai-compatible` provider modes.
