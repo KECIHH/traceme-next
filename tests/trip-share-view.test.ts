@@ -6,7 +6,9 @@ import type {
   TripHistoryClientError,
 } from "@/lib/services/trip-history-client";
 import {
+  PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE,
   PUBLIC_SHARE_UNAVAILABLE_MESSAGE,
+  buildPublicShareUnavailableDetailMessage,
   buildPublicShareUnavailableMessage,
   buildShareLinkCopySuccessFeedback,
   buildShareLinkCreateSuccessFeedback,
@@ -68,6 +70,8 @@ test("share feedback copy stays fixed and safe", () => {
 
   assert.match(feedback[0]?.message ?? "", /只显示一次/);
   assert.match(feedback[2]?.message ?? "", /手动复制/);
+  assert.match(feedback[3]?.message ?? "", /统一不可用提示/);
+  assert.match(feedback[3]?.message ?? "", /无法继续访问/);
   assertNoSensitiveText(feedback);
 });
 
@@ -92,9 +96,18 @@ test("public share unavailable text is unified for revoked, expired, and not fou
 
   for (const error of errors) {
     assert.equal(buildPublicShareUnavailableMessage(), PUBLIC_SHARE_UNAVAILABLE_MESSAGE);
+    assert.equal(
+      buildPublicShareUnavailableDetailMessage(),
+      PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE,
+    );
     assert.equal(error.status === undefined || error.status >= 400, true);
   }
 
   assert.equal(PUBLIC_SHARE_UNAVAILABLE_MESSAGE, "分享链接不可用或已失效");
-  assertNoSensitiveText(PUBLIC_SHARE_UNAVAILABLE_MESSAGE);
+  assert.match(PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE, /不会区分具体原因/);
+  assert.match(PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE, /重新创建分享链接/);
+  assertNoSensitiveText({
+    message: PUBLIC_SHARE_UNAVAILABLE_MESSAGE,
+    detail: PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE,
+  });
 });

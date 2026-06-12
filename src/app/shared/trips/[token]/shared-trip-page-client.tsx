@@ -10,7 +10,10 @@ import {
   type PublicSharedTrip,
   type TripHistoryClientError,
 } from "@/lib/services/trip-history-client";
-import { buildPublicShareUnavailableMessage } from "@/lib/services/trip-share-view";
+import {
+  buildPublicShareUnavailableDetailMessage,
+  buildPublicShareUnavailableMessage,
+} from "@/lib/services/trip-share-view";
 
 type SharedTripState =
   | {
@@ -50,7 +53,7 @@ function PublicUnavailableState() {
         {buildPublicShareUnavailableMessage()}
       </h1>
       <p className="mt-3 break-words text-sm leading-6 text-zinc-600">
-        该链接可能不存在、已撤销或已过期。为保护行程隐私，页面不会区分具体原因。
+        {buildPublicShareUnavailableDetailMessage()}
       </p>
       <Link
         href="/"

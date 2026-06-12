@@ -1,6 +1,8 @@
 import type { SavedTripPlanShareSummary } from "@/lib/services/trip-history-client";
 
 export const PUBLIC_SHARE_UNAVAILABLE_MESSAGE = "分享链接不可用或已失效";
+export const PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE =
+  "该链接可能不存在、已撤销、已过期，或对应行程暂不可分享。为保护行程隐私，页面不会区分具体原因；如果这是恢复后的旧链接，请让所有者重新创建分享链接。";
 
 export type ShareFeedbackView = {
   tone: "success" | "error";
@@ -87,7 +89,8 @@ export function buildShareLinkManualCopyFeedback(): ShareFeedbackView {
 export function buildShareLinkRevokeSuccessFeedback(): ShareFeedbackView {
   return {
     tone: "success",
-    message: "已撤销分享链接。该链接将不再可访问。",
+    message:
+      "已撤销分享链接。持有旧链接的人会看到统一不可用提示，无法继续访问这份行程。",
   };
 }
 
@@ -100,4 +103,8 @@ export function buildShareLinkErrorFeedback(message: string): ShareFeedbackView 
 
 export function buildPublicShareUnavailableMessage() {
   return PUBLIC_SHARE_UNAVAILABLE_MESSAGE;
+}
+
+export function buildPublicShareUnavailableDetailMessage() {
+  return PUBLIC_SHARE_UNAVAILABLE_DETAIL_MESSAGE;
 }
