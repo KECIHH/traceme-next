@@ -18,7 +18,7 @@ This note supports the Round 44 real-browser acceptance pass. It prepares a mult
 
 ## Safe Multi-Version Preparation
 
-Run this snippet from the browser console while viewing the owned throwaway trip detail page. It uses the current browser session through same-origin requests, appends one valid test version, and prints only safe counts and UI instructions.
+Preferred path: run this snippet from the real browser console while viewing the owned throwaway trip detail page. It uses the current browser session through same-origin requests, appends one valid test version, and prints only safe counts and UI instructions.
 
 ```js
 const marker = "R44版本验收";
@@ -106,12 +106,29 @@ Expected result:
 - After refreshing `/trips/[测试行程]`, the version history shows the appended current version and at least one older version.
 - Restoring an older version creates a new current version and leaves the version history visible.
 
+## Controlled Version-Seed Fallback
+
+Use this fallback only when all of the following are true:
+
+- A throwaway trip was created through the authenticated real browser UI.
+- The browser automation control channel cannot run same-origin requests because page APIs such as `fetch` or `XMLHttpRequest` are unavailable.
+- `[测试数据库]` is safe to mutate, migrations are already applied, and the target record is clearly the throwaway `/trips/[测试行程]`.
+
+Fallback acceptance path:
+
+- Seed exactly one additional valid version for the browser-created throwaway trip in `[测试数据库]`.
+- Do not print or record account identity, raw session values, database URLs, SQL details, raw share material, token hashes, owner email, or real share links.
+- Return to real Chrome, refresh `/trips/[测试行程]`, and verify the version list and restore behavior through the UI.
+- Record the fallback in `docs/08-project-state.md`, including why the preferred browser-console snippet was not executable.
+
+The fallback does not replace UI acceptance. It only prepares multi-version data when the automation environment cannot execute the same-origin snippet; version-list display, restore confirmation, and new-version creation must still be verified in the real browser UI.
+
 ## Real Browser Checklist
 
 - Generate a plan from `/`, then save it.
 - Open `/trips`, confirm the saved trip appears without deleted records.
 - Open the saved detail page and confirm the current snapshot plus export actions render.
-- Run the safe multi-version snippet above on a throwaway detail page.
+- Run the safe multi-version snippet above on a throwaway detail page, or use the controlled version-seed fallback when the browser automation environment cannot execute same-origin requests.
 - Refresh detail, preview an older version, restore it, and confirm restore creates a new current version instead of mutating history.
 - Create a share link, open the public read-only page, revoke the share, then confirm the public page shows the generic unavailable state.
 - Delete the trip, confirm it disappears from normal `/trips`, appears in `/trips/deleted`, can be restored, and old share material remains unavailable after restore.
