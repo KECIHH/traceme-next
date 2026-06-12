@@ -1,3 +1,82 @@
+# Current Baseline - 2026-06-12
+
+- TraceMe Next is currently a personal beta travel workbench, not the original single API MVP.
+- Implemented baseline: generation, comparison, export, Auth, manual save, saved trips, detail, version history, version restore, share links, public read-only pages, soft delete, recently deleted, and restore-deleted.
+- Current schema source is `src/lib/schemas/trip.ts`: `GenerateTripPlanRequestSchema` and `TripPlanSchema`; old `travelStyle`, `specialRequests`, and `verificationItems` wording is historical reference only.
+- Delete/restore UI exists; do not plan it as missing.
+- Admin, production operations, maps, weather, enhanced search, and hard delete remain frozen.
+- This baseline note is documentation-only; no source, tests, db, package, deployment, or script files were changed for it.
+
+# Project State - MVP Round 46
+## Round 46 Current State
+- Round 46 confirmed the current documentation-only commit boundary and added the admin console design reference.
+- Recommended documentation-only commit boundary for this round is 4 documents total: `docs/08-project-state.md`, `docs/15-worktree-handoff.md`, `docs/16-round-44-real-e2e-acceptance.md`, and `docs/17-admin-console-design.md`.
+- The old Round 44/45 documentation-only acceptance record boundary remains 3 documents:
+  - `docs/08-project-state.md` (includes Round 44 and Round 45 state)
+  - `docs/16-round-44-real-e2e-acceptance.md` (real browser acceptance notes)
+  - `docs/15-worktree-handoff.md` (worktree handoff and dirty-file ownership)
+- Existing deployment/preproduction dirty files remain outside this round's 4-document commit boundary and were not modified: `.env.local.example`, `docker-compose.yml`, `Caddyfile`, `scripts/deploy-docker-compose.sh`, `scripts/smoke-travel-api.mjs`, `tests/preproduction-infrastructure.test.ts`, `README.md`, `docs/09-release-checklist.md`, `docs/10-account-history-design.md`, `docs/11-share-link-design.md`, and `docs/12-production-ops-design.md`.
+- `docs/17-admin-console-design.md` is the separate Round 46 design reference for a potential future admin console.
+- The admin design document explicitly states that TraceMe Next does not currently implement an admin backend and should defer it until personal workflow polish completes.
+- The design covers why admin should be deferred, minimum read-only diagnostic goals, what must never be exposed (secrets, connection strings, tokens, emails, SQL, stack traces), permission model drafts (admin allowlist vs role flag), safe API drafts (health, migrations, provider status, usage summary, error summary), UI draft (read-only dashboard), security risks, and recommended implementation order.
+- The design recommends that for many personal projects, direct database access and server logs remain safer and sufficient compared to a web-based admin UI.
+- No source code, API route, schema, migration, provider, deployment, domain, HTTPS, reverse proxy, admin implementation, map, weather, search, hard-delete, server-side PDF, or productionization work was added in this round.
+
+## Round 46 Boundaries
+- Documentation-only round: commit boundary clarification and admin console design reference.
+- No admin backend was implemented.
+- No admin route, admin API, admin UI, admin authentication, or admin database table was added.
+- No map, weather, search, live external-data feature, deployment, domain, HTTPS, reverse proxy, preproduction, or productionization work was added.
+- No business logic, API contract, schema, migration, provider, or core workflow behavior was changed.
+- No dirty working-tree files outside the documented commit boundary were deleted, restored, staged, committed, or modified.
+- No `.env`, `.env.local`, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer/header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, owner email, or real account was recorded.
+
+## Round 46 Verification
+- `npm test`: passed, 114 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route output remained the existing personal-workbench pages and API routes without admin routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 46 Record Time
+- Date: 2026-06-12 (Asia/Shanghai)
+- Stage: commit boundary confirmation and admin console design reference
+
+# Project State - MVP Round 45
+## Round 45 Current State
+- Round 45 re-attempted and completed the planned real Chrome manual recheck for the Round 44 incomplete browser items: multi-version restore UI, Markdown download file contents, share revoke, and delete / recently deleted / restore-deleted.
+- Required docs were checked before execution. `docs/00-project-brief-and-roadmap.md`, this file, and `docs/16-round-44-real-e2e-acceptance.md` were available; `docs/15-worktree-handoff.md` was still missing from the workspace, Git index, and HEAD, so that required document could not be read.
+- Review follow-up restored `docs/15-worktree-handoff.md` as the current documentation-only worktree handoff note.
+- `[测试数据库]` readiness was confirmed for this attempt: migrations were already applied, required auth/history/share tables were present, and the auth database summary completed without querying sensitive fields.
+- Chrome browser control was available, `[本地验证 URL]` opened successfully, and after local environment alignment to `[本地验证 URL]` plus `[测试数据库]`, the user completed a real `[测试账号]` login in Chrome.
+- A throwaway trip was generated, saved, and opened at `/trips/[测试行程]` through the authenticated Chrome UI. The detail page showed version history, share, delete, and export panels without owner email or sensitive configuration values.
+- Chrome's automation page context does not expose `fetch`, `XMLHttpRequest`, or `structuredClone`, so the exact `docs/16-round-44-real-e2e-acceptance.md` same-origin console snippet could not be executed automatically. To keep the UI acceptance moving, the browser-created throwaway trip was seeded with one additional version directly in `[测试数据库]`, then all version-list and restore behavior was verified through the real Chrome UI.
+- Multi-version restore UI passed: the version list showed v1 and v2, restoring an older version required a confirmation action, and after restore the browser UI showed v1, v2, and a new v3, confirming restore created a new version instead of overwriting history.
+- Markdown download passed in real Chrome: clicking `下载 Markdown` created a local `.md` file. The downloaded file was non-empty and contained `每日行程`, `用户自行确认事项`, and `免责声明`, without `undefined`, `null`, owner email, token hash, connection strings, or secrets.
+- Share revoke passed: the owner UI created a share link, copied it, an independent no-login browser context opened the public page as read-only with no owner operation controls, the owner UI revoked the link, and revisiting the old link showed the generic unavailable state without trip content.
+- Delete / recently deleted / restore-deleted passed: deleting the throwaway trip hid it from normal `/trips`, `/trips/deleted` showed it, the restore UI required a confirmation action, the record returned to `/trips`, and the old revoked share link remained unavailable after restore.
+- Safety checks during the completed browser paths did not show owner email, `tokenHash`, raw share token, real share URL in docs, connection strings, Auth/OAuth/AI secrets, bearer/header values, SQL details, or stack traces.
+
+## Round 45 Verification
+- `npm run db:migrate`: passed; latest migrations were already applied and required tables were present.
+- `npm run auth:db-summary`: passed; configured auth/database prerequisites were present and sensitive fields were not queried.
+- Chrome setup check: passed for browser control; `[本地验证 URL]` was reachable in Chrome.
+- Real browser login check: passed after local environment alignment; Chrome showed an authenticated `[测试账号]` state without owner email in page text.
+- Real browser manual acceptance: passed for generated throwaway trip save/detail, multi-version list and restore UI, Markdown download file contents, share create/copy/public-read-only/revoke/unavailable, delete, recently deleted, restore-deleted, and old share remaining unavailable after restore.
+- Limitation: the exact docs/16 same-origin append snippet was not executable through Chrome automation because page `fetch`/`XMLHttpRequest` APIs are unavailable in this control channel; one additional version was seeded in `[测试数据库]` for the browser-created throwaway trip before UI restore verification.
+- `npm test`: passed, 114 tests.
+- `npm run lint`: passed.
+- `npm run build`: passed; route output remained the existing personal-workbench pages and API routes.
+- `npx tsc --noEmit`: passed.
+
+## Round 45 Boundaries
+- No feature, business logic, API contract, schema, migration, provider, deployment, domain, HTTPS, reverse proxy, admin, map, weather, search, hard-delete, server-side PDF, or productionization work was added.
+- No source code was changed in this round. Round 45 acceptance remained documentation-only: this project-state document was updated, and the review follow-up restored `docs/15-worktree-handoff.md` plus documented the controlled fallback in `docs/16-round-44-real-e2e-acceptance.md`.
+- No `.env`, `.env.local`, real IP, real domain, `DATABASE_URL`, `AUTH_SECRET`, OAuth secret, AI key, session token, bearer/header value, raw share token, token hash, provider endpoint, SQL detail, stack trace, owner email, real account, or real share link was recorded.
+
+## Round 45 Record Time
+- Date: 2026-06-12 (Asia/Shanghai)
+- Stage: real Chrome manual acceptance completed with documented docs/16 snippet execution limitation
+
 # Project State - MVP Round 44
 ## Round 44 Current State
 - Round 44 is an E2E acceptance reinforcement and export-feedback polish round. It does not add product features, public API behavior, schema, migration, provider, admin, map, weather, search, deployment, domain, HTTPS, reverse proxy, hard-delete, client-database, or server-side PDF behavior.

@@ -27,19 +27,19 @@ TraceMe Next is not currently:
 ## Implemented Capabilities
 
 - Travel-plan generation through `POST /api/travel-plans/generate`, with `mock` and `openai-compatible` provider modes.
+- Current request/result contract from `src/lib/schemas/trip.ts`: `GenerateTripPlanRequestSchema` and `TripPlanSchema`. Older names such as `travelStyle`, `specialRequests`, and `verificationItems` are historical references only, not the current contract.
 - Plan comparison through `POST /api/travel-plans/compare` after a main plan exists.
 - Result export through copy full text, Markdown download, and browser print/save PDF.
 - Server-side account/auth boundary and safe current-user summary when Auth and database variables are configured.
 - Manual save of generated plans, protected "my trips" list, and protected trip detail.
 - Version history, version detail, append-version behavior, and restore from historical versions.
 - Owner-created fixed-version share links, safe share-list summaries, revoke behavior, and public read-only share pages.
-- API-only owner-scoped saved-trip soft delete, restore-deleted, and deleted-list boundary from Round 38.
+- Owner-scoped saved-trip soft delete, recently deleted list, and restore-deleted UI/API flow.
 - Sensitive response boundaries that avoid returning secrets, raw provider data, token hashes, SQL details, stack traces, or connection strings.
 
 ## Not Implemented Yet
 
-- Delete UI on trip list or detail pages.
-- Restore-deleted UI, recently deleted UI, undo UI, or recycle-bin page.
+- One-click undo toast beyond the current recently deleted restore flow.
 - Hard-delete retention job, account deletion workflow, or permanent deletion policy.
 - Admin backend.
 - Maps, weather, enhanced web search, live ticket/hotel/transport/weather data, or provider-backed external-data workflows.
@@ -50,7 +50,7 @@ TraceMe Next is not currently:
 ## Short-Term Priorities
 
 1. Polish the existing personal workbench flow: empty states, loading states, unauthenticated states, save success, restore, revoke, and unavailable-share states.
-2. Recommended next step: add conservative owner-only delete / restore-deleted UI on top of the Round 38 API-only boundary.
+2. Recommended next step: stabilize the completed owner-only delete / recently deleted / restore-deleted flow with clearer empty/error states and optional honest undo affordances.
 3. Keep deletion behavior soft-delete first, with confirmation, generic unavailable states, and clear wording that recently deleted trips can be restored within the server-enforced window.
 4. Keep share safety conservative: deleting a trip makes old public share links unavailable, and restoring a deleted trip should require creating a new share link.
 
@@ -89,6 +89,6 @@ Use placeholders such as `[预生产域名]`, `[本地验证 URL]`, `[真实 AI 
 
 ## Recommended Next Step
 
-Next recommended implementation round: delete / restore-deleted UI.
+Next recommended implementation round: personal-workbench polish after the completed delete / restore-deleted UI.
 
-Use the Round 38 API-only boundary and `docs/14-delete-restore-design.md` as the source of truth. The UI should stay owner-only, confirmation-based, soft-delete first, and conservative about public share reactivation. Do not add hard delete, admin, maps, weather, search, productionization, or complex permissions as part of that UI round.
+Use `docs/14-delete-restore-design.md` as the deletion safety reference. Keep the UI owner-only, confirmation-based, soft-delete first, and conservative about public share reactivation. Do not add hard delete, admin, maps, weather, search, productionization, or complex permissions as part of that polish round.

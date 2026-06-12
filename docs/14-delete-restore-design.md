@@ -2,7 +2,7 @@
 
 ## Current Boundary
 
-Round 38 implements the API-only first phase for owner-scoped saved-trip soft delete, restore-deleted, and deleted-list behavior. Round 37 remains the design baseline, while Round 38 is the implemented server boundary.
+Round 38 implemented the API-only first phase for owner-scoped saved-trip soft delete, restore-deleted, and deleted-list behavior. Later personal-workbench rounds added the conservative owner UI on top of that server boundary.
 
 The current personal beta now has:
 
@@ -14,14 +14,15 @@ The current personal beta now has:
 - `DELETE /api/travel-plans/[id]` for owner-only soft delete.
 - `POST /api/travel-plans/[id]/restore-deleted` for owner-only restore inside the 30-day window.
 - `GET /api/travel-plans/deleted` for owner-only deleted record summaries.
+- Detail-page and list-item delete controls with confirmation.
+- A `/trips/deleted` recently deleted page with owner-only restore controls.
 
 The current personal beta does not yet have:
 
-- Detail-page or list-item delete controls.
-- A deleted-trip list, undo entry, or recycle-bin UI.
+- A one-click undo toast beyond the recently deleted restore page.
 - A hard-delete retention job or account deletion workflow.
 
-Existing `generate`, `compare`, `save`, version restore, share create/list/revoke, and public-share success behavior remains unchanged by Round 38.
+Existing `generate`, `compare`, `save`, version restore, share create/list/revoke, and public-share success behavior remains unchanged by the delete/restore baseline.
 
 ## Product Behavior
 
@@ -141,7 +142,7 @@ Recommended responses:
 
 ### `GET /api/travel-plans/deleted`
 
-Purpose: endpoint for a future "recently deleted" or undo surface.
+Purpose: endpoint for the current "recently deleted" restore surface and any later undo affordance.
 
 Authentication: required.
 
@@ -184,28 +185,28 @@ Error responses should use the existing safe shape:
 
 The response body must not include internal user ids, owner ids, raw tokens, token hashes, authorization headers, bearer values, database URLs, SQL details, stack traces, provider credentials, or server IPs.
 
-## UI Draft
+## UI Baseline And Guardrails
 
-First-phase UI can stay small and conservative.
+The current owner UI is intentionally small and conservative. Future polish should keep the same guardrails.
 
-Recommended owner detail page:
+Owner detail page:
 
-- Add a delete action near owner-only management actions, separated from export/share actions.
-- Require a confirmation dialog before deletion.
+- Keep a delete action near owner-only management actions, separated from export/share actions.
+- Keep a confirmation dialog before deletion.
 - Confirmation copy should say the trip will leave "我的行程" and can be restored for 30 days.
-- After success, navigate back to `/trips` and show a short undo/restoration entry if available.
+- After success, navigate back to `/trips` and keep recovery guidance available.
 
-Recommended "我的行程" list:
+"我的行程" list:
 
-- Add a per-item delete action only for the owner.
-- Require confirmation before calling the delete API.
+- Keep a per-item delete action only for the owner.
+- Keep confirmation before calling the delete API.
 - Remove the item from the list after success.
 - If the deleted item was the only item, show the normal empty state.
 
-Recommended undo and deleted-list entry:
+Recently deleted and undo entry:
 
-- Minimal first phase can show a toast/action immediately after deletion.
-- Optional fuller phase can add a "最近删除" entry backed by `GET /api/travel-plans/deleted`.
+- The current baseline includes a "最近删除" page backed by `GET /api/travel-plans/deleted`.
+- A one-click undo toast remains optional future polish beyond that restore page.
 - Empty deleted state copy: "暂无最近删除的行程".
 - Expired deleted records should not offer restore.
 
@@ -247,10 +248,9 @@ Future hard delete should be a separate design. It must define:
 - Snapshot privacy: version snapshots remain stored after soft delete, so product copy must not imply immediate permanent erasure.
 - Sensitive output: logs, docs, UI, and API errors must not expose real IPs, secrets, connection strings, raw share tokens, token hashes, SQL details, stack traces, or provider credentials.
 
-## Out of Scope After Round 38
+## Out of Scope For The Current Delete/Restore Baseline
 
-- Implementing delete UI or undo UI.
-- Adding a deleted-list page or recycle-bin UI.
+- Adding one-click undo beyond the current recently deleted restore flow.
 - Adding database migrations.
 - Changing `package.json` dependencies.
 - Adding admin, maps, weather, search, preproduction, domain, HTTPS, or reverse-proxy work.
